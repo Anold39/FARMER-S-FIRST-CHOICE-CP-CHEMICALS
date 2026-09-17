@@ -291,35 +291,60 @@ async function downloadInvoicePDF(invoiceNo) {
  * client-side equivalent: no attachment is possible via mailto, but the full
  * invoice contents are included as text so nothing is lost.
  */
+/**
+ * Sends the invoice as a real email via EmailJS (a free, client-side email-sending service --
+ * no backend server needed, which is why it works on static GitHub Pages hosting). This replaces
+ * the earlier mailto: draft approach: mailto only works if the visitor's browser has a real,
+ * configured default mail app, which isn't reliably true, and produces no actual sent email --
+ * just an unsent draft the visitor still has to send themselves.
+ *
+ * Farmers don't have a real email address on file (their account uses a synthetic one purely for
+ * Firebase Auth), so this asks for a destination address each time rather than assuming one.
+ */
 async function emailInvoice(invoiceNo) {
     const inv = await findInvoiceByNo(invoiceNo);
     if (!inv) { alert('Invoice not found.'); return; }
 
-    const itemLines = inv.items.map(i => `  - ${i.name}  x${i.quantity}  @ $${i.price.toFixed(2)}  = $${i.lineTotal.toFixed(2)}`).join('\n');
-    const body =
-`CP Chemicals Pvt Ltd - Invoice ${inv.invoiceNo}
-Date: ${inv.date} ${inv.time}
-Status: ${inv.status}
-Payment Method: ${inv.paymentMethod}
+    const toEmail = prompt('Enter the email address to send this invoice to:', '');
+    if (!toEmail) return; // cancelled
 
-Billed To: ${inv.farmerName}
-Contact: ${inv.farmerPhone}
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) {
+        alert('Please enter a valid email address (e.g. name@example.com).');
+        return;
+    }
 
-Items:
-${itemLines}
+    if (typeof emailjs === 'undefined') {
+        alert('The email service did not load (are you offline?). Downloading the invoice instead -- you can attach or forward that file yourself.');
+        await downloadInvoiceHTML(invoiceNo);
+        return;
+    }
 
-Total: $${inv.total.toFixed(2)}
+    const itemLines = inv.items.map(i => `${i.name}  x${i.quantity}  @ $${i.price.toFixed(2)}  = $${i.lineTotal.toFixed(2)}`).join('\n');
 
-This invoice will be presented upon collection of goods at your selected CP Chemicals branch.
-Integrity reference (non-repudiation checksum): ${inv.checksum}
+    const templateParams = {
+        to_email: toEmail.trim(),
+        email: toEmail.trim(),        // also fills the template's "Reply To" field
+        name: 'CP Chemicals Pvt Ltd', // fills the template's "From Name" field
+        invoice_number: inv.invoiceNo,
+        invoice_date: `${inv.date} ${inv.time}`,
+        status: inv.status,
+        payment_method: inv.paymentMethod,
+        farmer_name: inv.farmerName,
+        farmer_phone: inv.farmerPhone,
+        items_list: itemLines,
+        subtotal: inv.subtotal.toFixed(2),
+        total: inv.total.toFixed(2),
+        checksum: inv.checksum
+    };
 
--- Sent from the CP Chemicals Dual-Channel System. This is a demonstration prototype; no attachment
-   is included because static hosting cannot send email server-side. Please keep this message, or
-   use the Download Invoice option on the site, as your record.`;
-
-    const subject = `CP Chemicals Invoice ${inv.invoiceNo}`;
-    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
+    try {
+        await emailjs.send('service_b974b2m', 'template_ot7b5xf', templateParams);
+        alert(`Invoice emailed to ${toEmail.trim()}.`);
+    } catch (err) {
+        console.error('[invoice.js] EmailJS send failed:', err);
+        alert('Could not send the email right now. Downloading the invoice instead -- you can attach or forward that file yourself.');
+        await downloadInvoiceHTML(invoiceNo);
+    }
 }
 
 async function markInvoiceCollected(invoiceNo) {

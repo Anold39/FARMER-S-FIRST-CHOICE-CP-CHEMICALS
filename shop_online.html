@@ -211,7 +211,7 @@
             <p style="font-size:0.9rem; color:#555; margin-bottom:20px;">Your invoice will be presented upon collection at your selected branch. Download or email a copy for your records below.</p>
             <div style="display:flex; flex-direction:column; gap:10px;">
                 <button class="btn-shop" style="background:#2e7d32;" onclick="downloadInvoicePDF(window.__lastInvoiceNo)"><i class="fas fa-file-pdf"></i> Download Invoice (PDF)</button>
-                <button class="btn-shop" style="background:#1565c0;" onclick="emailInvoice(window.__lastInvoiceNo)"><i class="fas fa-envelope"></i> Email Invoice to Myself</button>
+                <button class="btn-shop" style="background:#1565c0;" onclick="emailInvoice(window.__lastInvoiceNo)"><i class="fas fa-envelope"></i> Email Invoice</button>
                 <button class="btn-shop" style="background:#666;" onclick="viewInvoice(window.__lastInvoiceNo)"><i class="fas fa-print"></i> View / Print Invoice</button>
                 <a href="home.html" class="btn-shop" style="background:#888; text-decoration:none;">Continue to Home</a>
             </div>
@@ -241,6 +241,8 @@
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script>emailjs.init({ publicKey: 'Q-hqKd228SIKq1o1Z' });</script>
     <script type="module" src="firebase-init.js"></script>
     <script src="products-data.js"></script>
     <script src="invoice.js"></script>
