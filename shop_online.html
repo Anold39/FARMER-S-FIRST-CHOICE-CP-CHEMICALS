@@ -174,6 +174,8 @@
                     <span id="cart-total">$0.00</span>
                 </div>
 
+                <div id="authStatusBanner" style="margin-top:20px; padding:12px 14px; border-radius:8px; font-size:0.85rem;"></div>
+
                 <h4 style="margin-top: 20px;">Your Details (for invoice)</h4>
                 <div style="margin-top: 10px;">
                     <input type="text" id="checkoutFarmerName" class="qty-input" style="width:100%; margin-bottom:8px; padding:10px;" placeholder="Full Name">
@@ -239,6 +241,7 @@
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="module" src="firebase-init.js"></script>
     <script src="products-data.js"></script>
     <script src="invoice.js"></script>
     <script src="script.js"></script>
@@ -344,10 +347,18 @@
         }
 
         // Functional Payment Processing Logic
-        function processCheckout(gateway) {
+        async function processCheckout(gateway) {
             const cart = getStoredCart();
             if (cart.length === 0) {
                 alert("Your cart is empty. Please add products before checking out.");
+                return;
+            }
+
+            await window.CPFirebase.ready; // ensures Firebase has finished its initial "am I logged in?" check
+            if (!window.CPFirebase.auth.currentUser) {
+                if (confirm("Please log in or create a farmer account first, so your order and invoice are saved to your account. Go to the login page now?")) {
+                    window.location.href = 'farmer_login.html';
+                }
                 return;
             }
 
@@ -392,9 +403,10 @@
             }
         }
 
-        function completeOrder(paymentMethod, farmerName, farmerPhone) {
+        async function completeOrder(paymentMethod, farmerName, farmerPhone) {
             const cart = getStoredCart();
-            const invoice = generateInvoice(cart, farmerName, farmerPhone, paymentMethod);
+            const invoice = await generateInvoice(cart, farmerName, farmerPhone, paymentMethod);
+            if (!invoice) return; // generateInvoice already alerted the user (e.g. not logged in) -- cart is left untouched
 
             localStorage.removeItem('cp_cart');
             renderCart();
@@ -411,7 +423,30 @@
         }
 
         // Initialize display on load
-        document.addEventListener("DOMContentLoaded", renderCart);
+        function renderAuthStatus() {
+            const banner = document.getElementById('authStatusBanner');
+            const user = window.CPFirebase.auth.currentUser;
+            const nameField = document.getElementById('checkoutFarmerName');
+            const phoneField = document.getElementById('checkoutFarmerPhone');
+
+            if (user) {
+                banner.style.background = '#e8f5e9';
+                banner.style.color = '#1b5e20';
+                banner.innerHTML = `<i class="fas fa-user-check"></i> Logged in as <b>${user.displayName || 'Farmer'}</b> &middot; <a href="#" onclick="event.preventDefault(); window.CPFirebase.logout().then(() => location.reload());" style="color:#1b5e20; text-decoration:underline;">Log out</a>`;
+                if (nameField && !nameField.value) nameField.value = user.displayName || '';
+                if (phoneField && !phoneField.value) phoneField.value = window.CPFirebase.syntheticEmailToPhone(user.email) || '';
+            } else {
+                banner.style.background = '#fff3cd';
+                banner.style.color = '#856404';
+                banner.innerHTML = `<i class="fas fa-exclamation-triangle"></i> You're not logged in. <a href="farmer_login.html" style="color:#856404; text-decoration:underline; font-weight:bold;">Log in or register</a> before checking out.`;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            renderCart();
+            window.CPFirebase.ready.then(renderAuthStatus);
+            window.CPFirebase.onAuthChange(renderAuthStatus);
+        });
     </script>
 </body>
 </html>

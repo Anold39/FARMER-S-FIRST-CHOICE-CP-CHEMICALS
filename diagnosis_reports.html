@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
-        window.location.href = 'staff_login.html';
-    }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CP Chemicals | Staff - Diagnosis Reports</title>
@@ -44,6 +39,10 @@
     </style>
 </head>
 <body>
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
 
     <div class="db-header">
         <div class="db-title">
@@ -99,6 +98,8 @@
         </div>
     </div>
 
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
     <script src="diagnosis-log.js"></script>
     <script>
         function escapeHTMLDiag(str) {
@@ -107,13 +108,13 @@
             );
         }
 
-        function handleDirectDiagnosisSubmit(event) {
+        async function handleDirectDiagnosisSubmit(event) {
             event.preventDefault();
             const agronomist = document.getElementById('ddAgronomist').value.trim();
             const farmer = document.getElementById('ddFarmer').value.trim();
             if (!agronomist || !farmer) { alert('Please enter both the agronomist name and the farmer name.'); return; }
 
-            logDiagnosis({
+            await logDiagnosis({
                 source: 'Agronomist (Direct)',
                 farmerName: farmer,
                 crop: document.getElementById('ddCrop').value.trim(),
@@ -124,13 +125,13 @@
             });
 
             document.getElementById('directDiagnosisForm').reset();
-            renderDiagnosisTable();
+            await renderDiagnosisTable();
             alert('Direct diagnosis logged successfully.');
         }
 
-        function renderDiagnosisTable() {
+        async function renderDiagnosisTable() {
             const searchVal = (document.getElementById('diagnosisSearch').value || '').toLowerCase();
-            let log = getDiagnosisLog();
+            let log = await getDiagnosisLog();
             if (searchVal) {
                 log = log.filter(r =>
                     (r.farmerName || '').toLowerCase().includes(searchVal) ||
@@ -166,14 +167,24 @@
             }).join('');
         }
 
-        function handleDeleteDiagnosis(id) {
+        async function handleDeleteDiagnosis(id) {
             if (confirm('Remove this diagnosis record?')) {
-                deleteDiagnosisRecord(id);
-                renderDiagnosisTable();
+                await deleteDiagnosisRecord(id);
+                await renderDiagnosisTable();
             }
         }
 
         document.addEventListener('DOMContentLoaded', renderDiagnosisTable);
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
     </script>
 </body>
 </html>

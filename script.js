@@ -265,12 +265,12 @@ function openAgri(topic) {
 // publishPost() removed from here — staff_portal.html defines its own copy (writes 'CP_BLOGS').
 // See note in section 5 below for why duplicate names were removed from this shared file.
 
-function loadBlogPosts() {
+async function loadBlogPosts() {
     const display = document.getElementById('agri-display');
     if (!display) return;
-    
-    const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
-    
+
+    const posts = await getBlogPosts();
+
     if (posts.length === 0) {
         display.innerHTML = "<h3>Latest Updates</h3><p>Select a topic or wait for new updates.</p>";
         return;

@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
-        window.location.href = 'staff_login.html';
-    }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CP Chemicals | Staff - Sales History</title>
@@ -38,6 +33,10 @@
     </style>
 </head>
 <body>
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
 
     <div class="db-header">
         <div class="db-title">
@@ -76,6 +75,8 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
     <script src="products-data.js"></script>
     <script src="invoice.js"></script>
     <script>
@@ -85,8 +86,8 @@
             );
         }
 
-        function renderSalesHistory() {
-            const invoices = getInvoices();
+        async function renderSalesHistory() {
+            const invoices = await getAllInvoices();
             const tbody = document.getElementById('invoice-table-body');
 
             document.getElementById('stat-total').textContent = invoices.length;
@@ -120,13 +121,13 @@
             }).join('');
         }
 
-        function markCollectedAndRefresh(invoiceNo) {
-            markInvoiceCollected(invoiceNo);
-            renderSalesHistory();
+        async function markCollectedAndRefresh(invoiceNo) {
+            await markInvoiceCollected(invoiceNo);
+            await renderSalesHistory();
         }
 
-        function exportInvoicesCSV() {
-            const invoices = getInvoices();
+        async function exportInvoicesCSV() {
+            const invoices = await getAllInvoices();
             if (invoices.length === 0) { alert('No invoices to export yet.'); return; }
 
             function esc(v) {
@@ -153,6 +154,16 @@
         }
 
         document.addEventListener('DOMContentLoaded', renderSalesHistory);
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
     </script>
 </body>
 </html>

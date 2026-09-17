@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Staff - Manage Agri-Talk Guides</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary-green: #2e7d32; --dark-bg: #1a1a1a; --light-gray: #f4f4f4; --indigo: #3949ab; }
+        body { background-color: var(--light-gray); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .db-header { background: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .db-title h2 { color: var(--indigo); margin: 0; display: flex; align-items: center; gap: 10px; }
+        .btn-back { text-decoration: none; color: #666; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-back:hover { color: var(--primary-green); }
+        .content-wrap { max-width: 1100px; margin: 0 auto; padding: 30px 20px; }
+        .form-card { background: white; border-radius: 12px; padding: 22px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-left: 5px solid var(--indigo); }
+        .form-card h3 { margin-top: 0; color: var(--indigo); }
+        .form-card input, .form-card textarea, .form-card select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; margin-bottom: 12px; box-sizing: border-box; }
+        .btn-indigo { background: var(--indigo); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .btn-indigo:hover { background: #283593; }
+        .topic-filter { display: flex; gap: 10px; margin-bottom: 20px; }
+        .topic-filter button { padding: 8px 18px; border-radius: 20px; border: 2px solid var(--indigo); background: white; color: var(--indigo); font-weight: bold; cursor: pointer; }
+        .topic-filter button.active { background: var(--indigo); color: white; }
+        .guide-card { background: white; border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid var(--indigo); }
+        .guide-card .topic-tag { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; color: var(--indigo); background: #e8eaf6; padding: 2px 8px; border-radius: 10px; }
+        .guide-card h4 { margin: 8px 0 4px; }
+        .guide-card p { color: #555; font-size: 0.9rem; margin: 0 0 10px; }
+        .guide-card .actions button { font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; margin-right: 8px; }
+        .btn-edit-guide { background: #e3f2fd; color: #1565c0; }
+        .btn-delete-guide { background: #ffebee; color: #c62828; }
+        .edit-box { display: none; margin-top: 10px; padding: 12px; background: #f5f5f5; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
+
+    <div class="db-header">
+        <div class="db-title">
+            <h2><i class="fas fa-book-open"></i> Manage Agri-Talk Guides</h2>
+            <p style="color: #888; font-size: 0.9rem; margin-top: 5px;">Farming Tips, Weed Identification & Calibration Guide content shown on the public Agri-Talk page</p>
+        </div>
+        <a href="staff_portal.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="content-wrap">
+        <div class="form-card">
+            <h3><i class="fas fa-plus-circle"></i> Add a New Entry</h3>
+            <form id="addGuideForm" onsubmit="handleAddGuide(event)">
+                <select id="guideTopic" required>
+                    <option value="">-- Select Topic --</option>
+                    <option value="tips">Farming Tips</option>
+                    <option value="weed">Weed Identification</option>
+                    <option value="calibrate">Calibration Guide</option>
+                </select>
+                <input type="text" id="guideTitle" placeholder="Title (e.g. 'Post-Harvest Grain Storage')" required>
+                <textarea id="guideContent" rows="4" placeholder="Content shown to farmers..." required></textarea>
+                <button type="submit" class="btn-indigo"><i class="fas fa-plus"></i> Add Entry</button>
+            </form>
+        </div>
+
+        <div class="topic-filter">
+            <button class="active" onclick="filterTopic('all', this)">All</button>
+            <button onclick="filterTopic('tips', this)">Farming Tips</button>
+            <button onclick="filterTopic('weed', this)">Weed Identification</button>
+            <button onclick="filterTopic('calibrate', this)">Calibration Guide</button>
+        </div>
+
+        <div id="guidesList"></div>
+    </div>
+
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
+    <script src="guides-data.js"></script>
+    <script>
+        function escapeHTMLGuide(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        const topicLabels = { tips: 'Farming Tips', weed: 'Weed Identification', calibrate: 'Calibration Guide' };
+        let currentFilter = 'all';
+
+        async function handleAddGuide(event) {
+            event.preventDefault();
+            const topic = document.getElementById('guideTopic').value;
+            const title = document.getElementById('guideTitle').value.trim();
+            const content = document.getElementById('guideContent').value.trim();
+            if (!topic || !title || !content) { alert('Please fill in the topic, title and content.'); return; }
+
+            await addGuide(topic, title, content);
+            document.getElementById('addGuideForm').reset();
+            await renderGuides();
+            alert('Entry added -- it will now appear on the public Agri-Talk page.');
+        }
+
+        function filterTopic(topic, btnEl) {
+            currentFilter = topic;
+            document.querySelectorAll('.topic-filter button').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+            renderGuides();
+        }
+
+        async function renderGuides() {
+            const listEl = document.getElementById('guidesList');
+            listEl.innerHTML = '<p style="text-align:center; color:#888;">Loading...</p>';
+
+            let guides = await getAllGuides();
+            if (currentFilter !== 'all') {
+                guides = guides.filter(g => g.topic === currentFilter);
+            }
+
+            if (guides.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; color:#888; padding:30px;">No entries yet for this topic.</p>';
+                return;
+            }
+
+            listEl.innerHTML = guides.map(g => `
+                <div class="guide-card">
+                    <span class="topic-tag">${escapeHTMLGuide(topicLabels[g.topic] || g.topic)}</span>
+                    <h4>${escapeHTMLGuide(g.title)}</h4>
+                    <p>${escapeHTMLGuide(g.content)}</p>
+                    <div class="actions">
+                        <button class="btn-edit-guide" onclick="toggleEdit('${g.firestoreId}')"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn-delete-guide" onclick="handleDeleteGuide('${g.firestoreId}')"><i class="fas fa-trash"></i> Remove</button>
+                    </div>
+                    <div class="edit-box" id="edit-${g.firestoreId}">
+                        <input type="text" id="editTitle-${g.firestoreId}" value="${escapeHTMLGuide(g.title)}" style="width:100%; margin-bottom:8px; padding:8px;">
+                        <textarea id="editContent-${g.firestoreId}" rows="3" style="width:100%; margin-bottom:8px; padding:8px; box-sizing:border-box;">${escapeHTMLGuide(g.content)}</textarea>
+                        <button class="btn-indigo" onclick="saveEdit('${g.firestoreId}')">Save Changes</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function toggleEdit(firestoreId) {
+            const box = document.getElementById(`edit-${firestoreId}`);
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        }
+
+        async function saveEdit(firestoreId) {
+            const title = document.getElementById(`editTitle-${firestoreId}`).value.trim();
+            const content = document.getElementById(`editContent-${firestoreId}`).value.trim();
+            if (!title || !content) { alert('Title and content cannot be empty.'); return; }
+            await updateGuide(firestoreId, { title, content });
+            await renderGuides();
+        }
+
+        async function handleDeleteGuide(firestoreId) {
+            if (confirm('Remove this guide entry? It will no longer appear on the public Agri-Talk page.')) {
+                await deleteGuide(firestoreId);
+                await renderGuides();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderGuides);
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
+    </script>
+</body>
+</html>

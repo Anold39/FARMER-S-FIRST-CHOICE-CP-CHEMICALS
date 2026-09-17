@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
-        window.location.href = 'staff_login.html';
-    }
-    </script>
     <meta charset="UTF-8">
     <title>CP Chemicals | Agronomist Dashboard</title>
     <link rel="stylesheet" href="style.css">
@@ -112,6 +107,10 @@
     </style>
 </head>
 <body>
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
     <div class="admin-container">
         
         <div class="dashboard-header">
@@ -131,7 +130,7 @@
             </div>
         </div>
 
-        <h3 class="admin-section-title">Management Tools</h3>
+        <h3 class="admin-section-title">Farmer &amp; Sales Management</h3>
         <div class="tools-grid">
             <a href="farmer_database.html" class="tool-card">
                 <i class="fas fa-database"></i>
@@ -152,6 +151,34 @@
             <a href="inventory_management.html" class="tool-card" style="border-top-color:#00695c;">
                 <i class="fas fa-boxes-stacked"></i>
                 <span>Inventory Management</span>
+            </a>
+        </div>
+
+        <h3 class="admin-section-title" style="margin-top:30px;">Content Management</h3>
+        <div class="tools-grid">
+            <a href="manage_guides.html" class="tool-card" style="border-top-color:#3949ab;">
+                <i class="fas fa-book-open"></i>
+                <span>Manage Agri-Talk Guides</span>
+            </a>
+            <a href="manage_testimonials.html" class="tool-card" style="border-top-color:#f9a825;">
+                <i class="fas fa-quote-left"></i>
+                <span>Manage Testimonials</span>
+            </a>
+            <a href="manage_news.html" class="tool-card" style="border-top-color:#c62828;">
+                <i class="fas fa-newspaper"></i>
+                <span>Manage Newsroom</span>
+            </a>
+            <a href="manage_symptoms.html" class="tool-card" style="border-top-color:#00838f;">
+                <i class="fas fa-list-check"></i>
+                <span>Manage AI Dropdown Options</span>
+            </a>
+        </div>
+
+        <h3 class="admin-section-title" style="margin-top:30px;">Administration</h3>
+        <div class="tools-grid">
+            <a href="manage_staff.html" class="tool-card" style="border-top-color:#455a64;">
+                <i class="fas fa-user-shield"></i>
+                <span>Manage Staff Access</span>
             </a>
         </div>
 
@@ -192,7 +219,10 @@
 
     </div>
 
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
     <script src="diagnosis-log.js"></script>
+    <script src="blog-data.js"></script>
     <script>
         function logoutStaff() {
             if(confirm("Are you sure you want to log out of the Agronomist Dashboard?")) {
@@ -245,7 +275,7 @@
             `).join('');
         }
 
-        function sendResponse(index) {
+        async function sendResponse(index) {
             const replyText = document.getElementById(`reply-input-${index}`).value.trim();
             if (!replyText) {
                 alert('Please enter a response message before sending.');
@@ -266,18 +296,23 @@
             // Mirror this reply into the shared Diagnosis Reports history (diagnosis_reports.html),
             // distinctly sourced so it isn't confused with an AI match, a fully offline direct
             // consultation, or an AI-escalation follow-up -- this is a human reply to a farmer's
-            // Agri-Talk question.
+            // Agri-Talk question. This pathway's own record (agronomyQueries) stays on localStorage
+            // for now, same as before; only the diagnosis-history mirror is new.
             if (typeof logDiagnosis === 'function') {
-                logDiagnosis({
-                    source: 'Agronomist (via Agri-Talk)',
-                    farmerName: queries[index].farmerName || '',
-                    crop: '',
-                    symptom: '',
-                    query: queries[index].message || '',
-                    productRecommended: '',
-                    agronomistName: '',
-                    notes: `Agri-Talk reply (branch: ${queries[index].branch || 'General'}): ${replyText}`
-                });
+                try {
+                    await logDiagnosis({
+                        source: 'Agronomist (via Agri-Talk)',
+                        farmerName: queries[index].farmerName || '',
+                        crop: '',
+                        symptom: '',
+                        query: queries[index].message || '',
+                        productRecommended: '',
+                        agronomistName: '',
+                        notes: `Agri-Talk reply (branch: ${queries[index].branch || 'General'}): ${replyText}`
+                    });
+                } catch (err) {
+                    console.warn('[staff_portal] Could not mirror this reply to Diagnosis Reports.', err);
+                }
             }
 
             loadFarmerQueries();
@@ -292,7 +327,7 @@
             }
         }
 
-        function publishPost() {
+        async function publishPost() {
             const title = document.getElementById('blogTitle').value.trim();
             const content = document.getElementById('blogContent').value.trim();
             const imageFile = document.getElementById('blogImage').files[0];
@@ -302,19 +337,11 @@
                 return;
             }
 
-            const processPublish = (imgData = null) => {
-                const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
-                posts.unshift({
-                    id: Date.now(),
-                    title: title,
-                    content: content,
-                    image: imgData,
-                    date: new Date().toLocaleDateString()
-                });
-                localStorage.setItem('CP_BLOGS', JSON.stringify(posts));
+            const processPublish = async (imgData = null) => {
+                await publishBlogPost(title, content, imgData);
                 alert('Post published live to Agri-Talk successfully!');
                 document.getElementById('blogForm').reset();
-                loadManagePosts();
+                await loadManagePosts();
             };
 
             if (imageFile) {
@@ -326,9 +353,9 @@
             }
         }
 
-        function loadManagePosts() {
+        async function loadManagePosts() {
             const manageArea = document.getElementById('manage-posts-area');
-            const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+            const posts = await getBlogPosts();
 
             if (posts.length === 0) {
                 manageArea.innerHTML = '<p style="color:#999; font-style:italic;">No published posts found.</p>';
@@ -345,11 +372,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${posts.map((p, i) => `
+                        ${posts.map(p => `
                             <tr>
                                 <td><strong>${escapeHTML(p.title)}</strong></td>
                                 <td>${escapeHTML(p.date)}</td>
-                                <td><button class="btn-delete" onclick="deletePost(${i})">Remove</button></td>
+                                <td><button class="btn-delete" onclick="deletePost('${p.id}')">Remove</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -357,12 +384,10 @@
             `;
         }
 
-        function deletePost(index) {
+        async function deletePost(id) {
             if (confirm("Remove this post from Agri-Talk feed?")) {
-                const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
-                posts.splice(index, 1);
-                localStorage.setItem('CP_BLOGS', JSON.stringify(posts));
-                loadManagePosts();
+                await deleteBlogPostById(id);
+                await loadManagePosts();
             }
         }
 
@@ -373,5 +398,15 @@
     </script>
 
     <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
+    </script>
 </body>
 </html>

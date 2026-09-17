@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
-        window.location.href = 'staff_login.html';
-    }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CP Chemicals | Staff - Inventory Management</title>
@@ -45,6 +40,10 @@
     </style>
 </head>
 <body>
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
 
     <div class="db-header">
         <div class="db-title">
@@ -60,10 +59,18 @@
         <div class="csv-card">
             <h3><i class="fas fa-file-csv"></i> Bulk Update via CSV</h3>
             <p style="font-size:0.85rem; color:#555;">
-                Upload a CSV with the header row <code>name,category,unitSize,price,stock,description</code>.
+                Upload a CSV with the header row <code>name,category,unitSize,price,stock,description,keywords</code>.
                 Rows matching an existing product name update its price/stock (and category/unitSize/description if
                 provided); rows with a new name are added as new products. <code>name</code>, <code>price</code> and
                 <code>stock</code> are required columns.
+            </p>
+            <p style="font-size:0.85rem; color:#555; background:#e0f2f1; padding:10px 14px; border-radius:6px; border-left:3px solid var(--teal);">
+                <strong>Diagnostic keywords:</strong> the <code>keywords</code> column controls which farmer-typed
+                symptoms the AI Advisory Portal will match to this product (e.g. <code>yellow leaves;chlorosis;pale
+                plant</code> &mdash; separate multiple terms with a semicolon, not a comma). Uploading new keywords
+                for an existing product <strong>adds</strong> them to what's already there; it never deletes existing
+                keywords, so a routine price update won't accidentally break the AI's matching for that product. This
+                is how new symptoms can be taught to the AI Advisory Portal without editing any code.
             </p>
             <input type="file" id="csvFileInput" accept=".csv" style="margin-bottom:10px;">
             <br>
@@ -101,6 +108,8 @@
         </div>
     </div>
 
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
     <script src="products-data.js"></script>
     <script>
         function escapeHTMLInv(str) {
@@ -109,9 +118,9 @@
             );
         }
 
-        function renderInventoryTable() {
+        async function renderInventoryTable() {
             const searchVal = (document.getElementById('invSearch').value || '').toLowerCase();
-            let products = getProducts();
+            let products = await getProducts();
 
             document.getElementById('stat-total').textContent = products.length;
             document.getElementById('stat-out').textContent = products.filter(p => p.stock <= 0).length;
@@ -136,25 +145,24 @@
                         <td>${escapeHTMLInv(p.category)}</td>
                         <td>${escapeHTMLInv(p.unitSize)}</td>
                         <td>$${parseFloat(p.price).toFixed(2)}</td>
-                        <td><input type="number" min="0" class="stock-input" id="stock-${p.id}" value="${p.stock}"></td>
+                        <td><input type="number" min="0" class="stock-input" id="stock-${p.firestoreId}" value="${p.stock}"></td>
                         <td><span class="${status.cssClass}">${escapeHTMLInv(status.label)}</span></td>
-                        <td><button class="btn-save-row" onclick="saveStockRow(${p.id})">Save</button></td>
+                        <td><button class="btn-save-row" onclick="saveStockRow('${p.firestoreId}')">Save</button></td>
                     </tr>`;
             }).join('');
         }
 
-        function saveStockRow(id) {
-            const input = document.getElementById(`stock-${id}`);
+        // Writes ONLY this one product's stock field in Firestore -- not the whole catalogue -- so two
+        // staff editing different products' stock at the same time can never overwrite each other's change
+        // (the read-all/mutate/write-all-back pattern Tier 1's saveProducts() used is no longer available
+        // here on purpose; see products-data.js header comment).
+        async function saveStockRow(firestoreId) {
+            const input = document.getElementById(`stock-${firestoreId}`);
             const newStock = parseInt(input.value);
             if (isNaN(newStock) || newStock < 0) { alert('Please enter a valid, non-negative stock quantity.'); return; }
 
-            const products = getProducts();
-            const idx = products.findIndex(p => p.id === id);
-            if (idx > -1) {
-                products[idx].stock = newStock;
-                saveProducts(products);
-                renderInventoryTable();
-            }
+            await updateProductStock(firestoreId, newStock);
+            await renderInventoryTable();
         }
 
         function handleCSVUpload() {
@@ -167,8 +175,8 @@
             }
 
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const result = importProductsFromCSV(e.target.result);
+            reader.onload = async (e) => {
+                const result = await importProductsFromCSV(e.target.result);
                 if (result.errors.length > 0 && result.updated === 0 && result.added === 0) {
                     resultBox.className = 'upload-result error';
                     resultBox.innerHTML = '<strong>Upload failed:</strong><br>' + result.errors.map(escapeHTMLInv).join('<br>');
@@ -176,20 +184,20 @@
                     resultBox.className = 'upload-result success';
                     resultBox.innerHTML = `<strong>Upload complete:</strong> ${result.updated} product(s) updated, ${result.added} product(s) added.` +
                         (result.errors.length > 0 ? '<br><em>Some rows were skipped:</em><br>' + result.errors.map(escapeHTMLInv).join('<br>') : '');
-                    renderInventoryTable();
+                    await renderInventoryTable();
                 }
             };
             reader.readAsText(fileInput.files[0]);
         }
 
-        function downloadCurrentCatalogueCSV() {
-            const products = getProducts();
+        async function downloadCurrentCatalogueCSV() {
+            const products = await getProducts();
             function esc(v) {
                 const s = String(v == null ? '' : v);
                 return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g, '""') + '"' : s;
             }
-            const headers = ['name', 'category', 'unitSize', 'price', 'stock', 'description'];
-            const rows = products.map(p => [p.name, p.category, p.unitSize, p.price, p.stock, p.description].map(esc).join(','));
+            const headers = ['name', 'category', 'unitSize', 'price', 'stock', 'description', 'keywords'];
+            const rows = products.map(p => [p.name, p.category, p.unitSize, p.price, p.stock, p.description, (p.keywords || []).join(';')].map(esc).join(','));
             const csv = headers.join(',') + '\n' + rows.join('\n');
 
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -204,6 +212,16 @@
         }
 
         document.addEventListener('DOMContentLoaded', renderInventoryTable);
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
     </script>
 </body>
 </html>

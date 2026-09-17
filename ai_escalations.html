@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
-        window.location.href = 'staff_login.html';
-    }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CP Chemicals - AI Escalations Management</title>
@@ -18,6 +13,10 @@
     </style>
 </head>
 <body class="bg-light">
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
 
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -79,21 +78,15 @@
     <div id="escalationList"></div>
 </div>
 
+<script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
 <script src="products-data.js"></script>
 <script src="diagnosis-log.js"></script>
+<script src="escalations-data.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', renderTable);
 
-    function getEscalations() {
-        return JSON.parse(localStorage.getItem('cp_ai_escalations')) || [];
-    }
-
-    function saveEscalations(list) {
-        localStorage.setItem('cp_ai_escalations', JSON.stringify(list));
-    }
-
-    function buildProductOptions(selectedName) {
-        const products = getProducts();
+    function buildProductOptions(selectedName, products) {
         let opts = '<option value="">-- No specific product (advice only) --</option>';
         products.forEach(p => {
             const sel = (p.name === selectedName) ? 'selected' : '';
@@ -103,12 +96,15 @@
         return opts;
     }
 
-    function renderTable() {
+    async function renderTable() {
         const listEl = document.getElementById('escalationList');
         const filterText = document.getElementById('searchInput').value.toLowerCase();
         const filterStatus = document.getElementById('statusFilter').value;
 
-        const escalations = getEscalations();
+        const escalations = await getEscalations();
+        // Fetched once per render (not once per card) -- buildProductOptions() below is a plain
+        // synchronous function that just formats this already-fetched array into <option> tags.
+        const products = await getProducts();
 
         const filtered = escalations.filter(item => {
             const matchesSearch = item.farmerName.toLowerCase().includes(filterText) ||
@@ -141,7 +137,7 @@
                     <textarea id="replyText_${item.id}" class="form-control form-control-sm mb-2" rows="2" placeholder="Type your agronomic advice here...">${escapeHTML(item.agronomistReply || '')}</textarea>
                     <label class="form-label small fw-semibold mb-1">Recommend a product (optional):</label>
                     <select id="replyProduct_${item.id}" class="form-select form-select-sm mb-2">
-                        ${buildProductOptions(item.recommendedProduct)}
+                        ${buildProductOptions(item.recommendedProduct, products)}
                     </select>
                     <button class="btn btn-sm btn-success" onclick="sendEscalationResponse('${item.id}')">
                         Send Response &amp; Mark Resolved
@@ -179,7 +175,7 @@
         }).join('');
     }
 
-    function sendEscalationResponse(ticketId) {
+    async function sendEscalationResponse(ticketId) {
         const agronomistName = document.getElementById(`replyAgronomist_${ticketId}`).value.trim();
         const replyText = document.getElementById(`replyText_${ticketId}`).value.trim();
         const recommendedProduct = document.getElementById(`replyProduct_${ticketId}`).value;
@@ -193,60 +189,49 @@
             return;
         }
 
-        const escalations = getEscalations();
-        let ticketForLog = null;
-        const updated = escalations.map(item => {
-            if (item.id === ticketId) {
-                item.agronomistReply = replyText;
-                item.recommendedProduct = recommendedProduct || '';
-                item.respondedBy = agronomistName;
-                item.repliedAt = new Date().toLocaleString();
-                item.status = 'Resolved';
-                item.farmerNotified = false;
-                ticketForLog = item;
-            }
-            return item;
+        // Writes only this one ticket's document -- not the whole collection -- so two agronomists
+        // resolving different tickets at the same moment never overwrite each other's change.
+        const updatedTicket = await updateEscalationRecord(ticketId, {
+            agronomistReply: replyText,
+            recommendedProduct: recommendedProduct || '',
+            respondedBy: agronomistName,
+            repliedAt: new Date().toLocaleString(),
+            status: 'Resolved',
+            farmerNotified: false
         });
-        saveEscalations(updated);
 
         // Mirror this response into the shared Diagnosis Reports history (diagnosis_reports.html),
         // distinctly sourced so it isn't confused with an unassisted AI match or a fully offline
         // direct consultation -- this is a human diagnosis that started as an AI escalation.
-        if (ticketForLog && typeof logDiagnosis === 'function') {
-            logDiagnosis({
+        if (updatedTicket && typeof logDiagnosis === 'function') {
+            await logDiagnosis({
                 source: 'Agronomist (via Escalation)',
-                farmerName: ticketForLog.farmerName,
-                crop: ticketForLog.crop,
-                symptom: ticketForLog.symptom,
-                query: ticketForLog.userQuery,
+                farmerName: updatedTicket.farmerName,
+                crop: updatedTicket.crop,
+                symptom: updatedTicket.symptom,
+                query: updatedTicket.userQuery,
                 productRecommended: recommendedProduct || '',
                 agronomistName: agronomistName,
                 notes: `Resolved via AI Escalations ticket ${ticketId}. Response: ${replyText}`
             });
         }
 
-        renderTable();
-        alert('Response sent and logged to Diagnosis Reports. The farmer will see this the next time they open the AI Advisory Portal and check their escalation status (same device/browser only).');
+        await renderTable();
+        alert('Response sent and logged to Diagnosis Reports. The farmer will see this the next time they open the AI Advisory Portal and check their escalation status -- from any device, not just this one.');
     }
 
-    function toggleStatus(ticketId) {
-        const escalations = getEscalations();
-        const updated = escalations.map(item => {
-            if (item.id === ticketId) {
-                item.status = item.status === 'Pending' ? 'Resolved' : 'Pending';
-            }
-            return item;
-        });
-        saveEscalations(updated);
-        renderTable();
+    async function toggleStatus(ticketId) {
+        const escalations = await getEscalations();
+        const current = escalations.find(e => e.id === ticketId);
+        if (!current) return;
+        await updateEscalationRecord(ticketId, { status: current.status === 'Pending' ? 'Resolved' : 'Pending' });
+        await renderTable();
     }
 
-    function clearAllEscalations() {
+    async function clearAllEscalations() {
         if (!confirm('Are you sure you want to remove all resolved escalations?')) return;
-        const escalations = getEscalations();
-        const pendingOnly = escalations.filter(item => item.status === 'Pending');
-        saveEscalations(pendingOnly);
-        renderTable();
+        await deleteResolvedEscalations();
+        await renderTable();
     }
 
     function escapeHTML(str) {
@@ -296,8 +281,8 @@
         return s;
     }
 
-    function exportEscalationsCSV() {
-        const escalations = getEscalations();
+    async function exportEscalationsCSV() {
+        const escalations = await getEscalations();
         if (escalations.length === 0) { alert('No escalations to export yet.'); return; }
 
         const headers = ['Ticket ID', 'Date/Time', 'Farmer Name', 'Farmer Phone', 'Crop', 'Symptom',
@@ -325,7 +310,7 @@
      * to the shared Diagnosis Reports history, so a bulk upload is indistinguishable in its downstream
      * effects from resolving the same tickets one at a time through the form.
      */
-    function importEscalationResolutionsFromCSV(csvText) {
+    async function importEscalationResolutionsFromCSV(csvText) {
         const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
         if (lines.length < 2) return { resolved: 0, errors: ["CSV appears to be empty or missing a header row."] };
 
@@ -339,10 +324,8 @@
             return { resolved: 0, errors: ["CSV header must include at least: ticketId, agronomistName, response."] };
         }
 
-        const escalations = getEscalations();
         let resolved = 0;
         const errors = [];
-        const toLog = [];
 
         for (let i = 1; i < lines.length; i++) {
             const cols = parseCSVLineEsc(lines[i]);
@@ -356,39 +339,41 @@
                 continue;
             }
 
-            const idx = escalations.findIndex(e => e.id === ticketId);
-            if (idx === -1) {
+            const matchedProduct = recommendedProduct ? await findProductByName(recommendedProduct) : null;
+            if (recommendedProduct && !matchedProduct) {
+                errors.push(`Row ${i + 1}: product "${recommendedProduct}" not found in catalogue \u2014 response saved without a product attached.`);
+            }
+
+            // Writes only this one ticket's document -- not the whole collection -- consistent with
+            // sendEscalationResponse() above; returns null (rather than throwing) if the ticket id
+            // doesn't exist, which is how we distinguish "not found" from "updated" below.
+            const updatedTicket = await updateEscalationRecord(ticketId, {
+                agronomistReply: response,
+                recommendedProduct: matchedProduct ? recommendedProduct : '',
+                respondedBy: agronomistName,
+                repliedAt: new Date().toLocaleString(),
+                status: 'Resolved',
+                farmerNotified: false
+            });
+
+            if (!updatedTicket) {
                 errors.push(`Row ${i + 1}: ticket "${ticketId}" not found, skipped.`);
                 continue;
             }
 
-            if (recommendedProduct && !findProductByName(recommendedProduct)) {
-                errors.push(`Row ${i + 1}: product "${recommendedProduct}" not found in catalogue \u2014 response saved without a product attached.`);
-            }
-
-            escalations[idx].agronomistReply = response;
-            escalations[idx].recommendedProduct = (recommendedProduct && findProductByName(recommendedProduct)) ? recommendedProduct : '';
-            escalations[idx].respondedBy = agronomistName;
-            escalations[idx].repliedAt = new Date().toLocaleString();
-            escalations[idx].status = 'Resolved';
-            escalations[idx].farmerNotified = false;
             resolved++;
-            toLog.push({ ...escalations[idx] });
-        }
-
-        saveEscalations(escalations);
-
-        if (typeof logDiagnosis === 'function') {
-            toLog.forEach(t => logDiagnosis({
-                source: 'Agronomist (via Escalation)',
-                farmerName: t.farmerName,
-                crop: t.crop,
-                symptom: t.symptom,
-                query: t.userQuery,
-                productRecommended: t.recommendedProduct || '',
-                agronomistName: t.respondedBy,
-                notes: `Resolved via bulk CSV upload, AI Escalations ticket ${t.id}. Response: ${t.agronomistReply}`
-            }));
+            if (typeof logDiagnosis === 'function') {
+                await logDiagnosis({
+                    source: 'Agronomist (via Escalation)',
+                    farmerName: updatedTicket.farmerName,
+                    crop: updatedTicket.crop,
+                    symptom: updatedTicket.symptom,
+                    query: updatedTicket.userQuery,
+                    productRecommended: updatedTicket.recommendedProduct || '',
+                    agronomistName: agronomistName,
+                    notes: `Resolved via bulk CSV upload, AI Escalations ticket ${ticketId}. Response: ${response}`
+                });
+            }
         }
 
         return { resolved, errors };
@@ -403,18 +388,28 @@
         }
 
         const reader = new FileReader();
-        reader.onload = (e) => {
-            const result = importEscalationResolutionsFromCSV(e.target.result);
+        reader.onload = async (e) => {
+            const result = await importEscalationResolutionsFromCSV(e.target.result);
             if (result.resolved === 0 && result.errors.length > 0) {
                 resultBox.innerHTML = '<span class="text-danger"><strong>Upload failed:</strong><br>' + result.errors.map(escapeHTML).join('<br>') + '</span>';
             } else {
                 resultBox.innerHTML = '<span class="text-success"><strong>' + result.resolved + ' ticket(s) resolved and logged to Diagnosis Reports.</strong></span>' +
                     (result.errors.length > 0 ? '<br><span class="text-warning">Some rows were skipped:</span><br>' + result.errors.map(escapeHTML).join('<br>') : '');
-                renderTable();
+                await renderTable();
             }
         };
         reader.readAsText(fileInput.files[0]);
     }
 </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
+    </script>
 </body>
 </html>

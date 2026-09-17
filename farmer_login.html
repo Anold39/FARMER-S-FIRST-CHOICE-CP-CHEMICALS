@@ -86,7 +86,10 @@
             </div>
 
             <div class="registration-form-card">
-                <h3>Farmer Registration</h3>
+                <h3 id="formTitle">Farmer Registration</h3>
+                <p id="authToggleText" style="font-size:0.85rem; margin-bottom:15px;">
+                    Already have an account? <a href="#" onclick="toggleAuthMode(event)" style="color:#2e7d32; font-weight:bold;">Log In</a>
+                </p>
                 <form id="registrationForm">
                     <div class="form-group">
                         <label>Full Name</label>
@@ -103,8 +106,13 @@
                             <input type="email" id="farmerEmail" placeholder="email@example.com">
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
+                        <label>Account PIN (6+ digits -- used to log in and view your order history on any device)</label>
+                        <input type="password" id="farmerPin" placeholder="e.g. 123456" required minlength="6" inputmode="numeric">
+                    </div>
+                    
+                    <div class="form-group" id="districtGroup">
                         <label>Farm Location / District</label>
                         <select id="farmerDistrict" required>
                             <option value="">Select District</option>
@@ -116,7 +124,7 @@
                         </select>
                     </div>
                     
-                    <div class="form-group">
+                    <div class="form-group" id="cropsGroup">
                         <label>Primary Crop Interest</label>
                         <div class="checkbox-grid" id="cropCheckboxes">
                             <label><input type="checkbox" value="Maize"> Maize</label>
@@ -126,12 +134,12 @@
                         </div>
                     </div>
                     
-                    <div class="form-group">
+                    <div class="form-group" id="farmSizeGroup">
                         <label>Farm Size (Hectares)</label>
                         <input type="number" id="farmSize" placeholder="e.g. 5">
                     </div>
                     
-                    <button type="submit" class="btn-shop register-btn">Create Farmer Account</button>
+                    <button type="submit" class="btn-shop register-btn" id="submitBtn">Create Farmer Account</button>
                 </form>
             </div>
         </div>
@@ -140,17 +148,8 @@
     <section class="testimonials-section">
         <h2 style="color: #2e7d32;">Farmer Testimonials</h2>
         <p>Real stories from our network across Zimbabwe</p>
-        <div class="testimonial-grid">
-            <div class="testimonial-card">
-                <div class="star-rating"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
-                <p>"The CP Farmer discount saved me over $200 on my tobacco chemicals this season. The AI advisor is a game changer!"</p>
-                <h4>— Tafadzwa C., Mvurwi</h4>
-            </div>
-            <div class="testimonial-card">
-                <div class="star-rating"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
-                <p>"Great support from the Agronomy team. Whenever I have a pest issue, they respond almost instantly with the right solution."</p>
-                <h4>— Rumbidzai G., Mazowe</h4>
-            </div>
+        <div class="testimonial-grid" id="testimonialGrid">
+            <p style="text-align:center; color:#888;">Loading...</p>
         </div>
     </section>
 
@@ -168,7 +167,36 @@
         </a>
     </footer>
 
+    <script type="module" src="firebase-init.js"></script>
+    <script src="testimonials-data.js"></script>
     <script>
+        function escapeHTMLTestimonial(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        async function renderTestimonials() {
+            const grid = document.getElementById('testimonialGrid');
+            const testimonials = await getTestimonials();
+
+            if (testimonials.length === 0) {
+                grid.innerHTML = '';
+                return;
+            }
+
+            grid.innerHTML = testimonials.map(t => {
+                const starIcons = '<i class="fas fa-star"></i>'.repeat(Math.max(1, Math.min(5, parseInt(t.rating) || 5)));
+                return `
+                    <div class="testimonial-card">
+                        <div class="star-rating">${starIcons}</div>
+                        <p>"${escapeHTMLTestimonial(t.quote)}"</p>
+                        <h4>&mdash; ${escapeHTMLTestimonial(t.name)}, ${escapeHTMLTestimonial(t.location)}</h4>
+                    </div>`;
+            }).join('');
+        }
+        document.addEventListener('DOMContentLoaded', renderTestimonials);
+
         // --- Star Rating Interaction ---
         let selectedRating = 5;
         const stars = document.querySelectorAll('#ratingSystem i');
@@ -187,9 +215,87 @@
         }
         updateStars(5); // Initial state
 
+        // --- Login / Register mode toggle ---
+        let isLoginMode = false;
+
+        function toggleAuthMode(evt) {
+            if (evt) evt.preventDefault();
+            isLoginMode = !isLoginMode;
+
+            document.getElementById('formTitle').textContent = isLoginMode ? 'Farmer Login' : 'Farmer Registration';
+            document.getElementById('submitBtn').textContent = isLoginMode ? 'Log In' : 'Create Farmer Account';
+            document.getElementById('authToggleText').innerHTML = isLoginMode
+                ? `New here? <a href="#" onclick="toggleAuthMode(event)" style="color:#2e7d32; font-weight:bold;">Create an Account</a>`
+                : `Already have an account? <a href="#" onclick="toggleAuthMode(event)" style="color:#2e7d32; font-weight:bold;">Log In</a>`;
+
+            // Registration-only fields are hidden (not removed) in login mode, and their `required`
+            // attribute is cleared so the browser doesn't block submission on a hidden required field.
+            ['districtGroup', 'cropsGroup', 'farmSizeGroup'].forEach(id => {
+                document.getElementById(id).style.display = isLoginMode ? 'none' : '';
+            });
+            document.getElementById('farmerDistrict').required = !isLoginMode;
+        }
+
+        // Friendlier messages for the Firebase Auth error codes this form can actually trigger.
+        function describeAuthError(err) {
+            const code = err && err.code;
+            if (code === 'auth/email-already-in-use') return 'This phone number is already registered. Please use "Log In" instead.';
+            if (code === 'auth/weak-password') return 'Your PIN must be at least 6 characters.';
+            if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') return 'Incorrect phone number or PIN. Please try again, or create an account if you\'re new here.';
+            if (code === 'auth/invalid-email') return 'That phone number doesn\'t look valid. Please check and try again.';
+            return 'Something went wrong (' + (code || err.message || 'unknown error') + '). Please try again.';
+        }
+
         // --- Real-time Database Update ---
-        document.getElementById('registrationForm').addEventListener('submit', function(e) {
+        document.getElementById('registrationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            const nameVal = document.getElementById('farmerName').value.trim();
+            const phoneVal = document.getElementById('farmerPhone').value.trim();
+            const pinVal = document.getElementById('farmerPin').value;
+            const phonePattern = /^(\+263|0)[0-9]{9}$/;
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!phonePattern.test(phoneVal.replace(/\s+/g, ''))) {
+                alert('Please enter a valid Zimbabwean phone number, e.g. 077XXXXXXX or +263 77XXXXXXX.');
+                document.getElementById('farmerPhone').focus();
+                return;
+            }
+            if (pinVal.length < 6) {
+                alert('Your PIN must be at least 6 characters.');
+                document.getElementById('farmerPin').focus();
+                return;
+            }
+
+            if (isLoginMode) {
+                submitBtn.disabled = true; submitBtn.textContent = 'Logging in...';
+                try {
+                    const user = await window.CPFirebase.loginFarmer(phoneVal, pinVal);
+                    alert(`Welcome back, ${user.displayName || 'farmer'}!`);
+                    window.location.href = 'home.html';
+                } catch (err) {
+                    alert(describeAuthError(err));
+                } finally {
+                    submitBtn.disabled = false; submitBtn.textContent = 'Log In';
+                }
+                return;
+            }
+
+            // --- Registration path ---
+            if (nameVal.length < 2) {
+                alert('Please enter your full name (at least 2 characters).');
+                document.getElementById('farmerName').focus();
+                return;
+            }
+
+            submitBtn.disabled = true; submitBtn.textContent = 'Creating account...';
+            try {
+                await window.CPFirebase.registerFarmer(phoneVal, pinVal, nameVal);
+            } catch (err) {
+                alert(describeAuthError(err));
+                submitBtn.disabled = false; submitBtn.textContent = 'Create Farmer Account';
+                return;
+            }
 
             // Collect Selected Crops
             const selectedCrops = [];
@@ -197,23 +303,7 @@
                 selectedCrops.push(checkbox.value);
             });
 
-            // Basic client-side validation before saving
-            const nameVal = document.getElementById('farmerName').value.trim();
-            const phoneVal = document.getElementById('farmerPhone').value.trim();
-            const phonePattern = /^(\+263|0)[0-9]{9}$/;
-
-            if (nameVal.length < 2) {
-                alert('Please enter your full name (at least 2 characters).');
-                document.getElementById('farmerName').focus();
-                return;
-            }
-            if (!phonePattern.test(phoneVal.replace(/\s+/g, ''))) {
-                alert('Please enter a valid Zimbabwean phone number, e.g. 077XXXXXXX or +263 77XXXXXXX.');
-                document.getElementById('farmerPhone').focus();
-                return;
-            }
-
-            // Collect Data
+            // Collect Data (name/phone already validated above, before the Firebase Auth account was created)
             const newFarmer = {
                 name: nameVal,
                 phone: phoneVal,
@@ -235,8 +325,7 @@
 
             // Success feedback
             alert("Success! Account created for " + newFarmer.name + ". Welcome to the network!");
-            this.reset();
-            updateStars(5);
+            window.location.href = 'home.html';
         });
     </script>
 </body>

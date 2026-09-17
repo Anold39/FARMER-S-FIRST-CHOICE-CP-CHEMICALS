@@ -159,46 +159,30 @@
 </footer>
 
    <script>
-        // Expanded Rotating Content Arrays for Interactive Clicks
-        const agriContentLists = {
-            tips: [
-                `<h3>Farming Tips (1/3): Soil Management & Nutrition</h3>
-                 <p>Ensure you check soil moisture and pH levels before applying top-dressing fertilizer. Basal fertilizer should be placed near the root zone at planting to prevent leaching during early heavy rains.</p>`,
-                `<h3>Farming Tips (2/3): Pest Control & Crop Protection</h3>
-                 <p>Rotate crop protection chemicals with different modes of action (MOA) to avoid pest resistance. Inspect under leaf surfaces early in the morning for Fall Armyworm and Red Spider Mites.</p>`,
-                `<h3>Farming Tips (3/3): Irrigation & Water Efficiency</h3>
-                 <p>Irrigate early in the morning or late evening to cut evaporative loss. Monitor soil moisture down to 30cm to ensure effective root-zone saturation without waterlogging.</p>`
-            ],
-            weed: [
-                `<h3>Weed Identification (1/3): Common Broadleaf Weeds</h3>
-                 <p><strong>Blackjack (Bidens pilosa) & Pigweed (Amaranthus):</strong> Highly competitive broadleaf weeds in Zimbabwean maize and tobacco fields. Apply <em>CP-Glyphosate 480SL</em> pre-planting or selective broadleaf herbicides early post-emergence.</p>`,
-                `<h3>Weed Identification (2/3): Problem Grasses</h3>
-                 <p><strong>Couch Grass (Cynodon dactylon) & Shamva Grass:</strong> Perennial grasses with deep stolons and rhizomes. Require systemic post-emergence herbicide applications like <em>CP-Fluazifop-p-butyl</em> in broadleaf crops.</p>`,
-                `<h3>Weed Identification (3/3): Sedges & Parasitic Weeds</h3>
-                 <p><strong>Yellow Nutsedge (Cyperus esculentus) & Witchweed (Striga):</strong> Sedges thrive in wet soils and propagate via tubers. Striga attaches to cereal roots. Use specialized soil-applied pre-emergence herbicides and crop rotation.</p>`
-            ],
-            calibrate: [
-                `<h3>Calibration Guide (1/3): Knapsack Sprayer Basics</h3>
-                 <p>Maintain a constant walking speed (approx. 1 meter per second) and maintain steady pressure at 2–3 bar to ensure uniform chemical coverage across the target swath width.</p>`,
-                `<h3>Calibration Guide (2/3): Nozzle Selection & Flow Rate</h3>
-                 <p>Use yellow flat-fan nozzles for herbicides and hollow-cone nozzles for fungicides/insecticides. Catch output in a measuring cylinder for 1 minute; replace nozzles showing over 10% variation from nominal discharge.</p>`,
-                `<h3>Calibration Guide (3/3): Dosage & Water Volume Math</h3>
-                 <p>Calculate required chemical dosage per 15L or 20L tank: <code>(Recommended Rate/Ha) ÷ (Water Volume/Ha) × Tank Capacity</code>. Never estimate chemical volume by eye.</p>`
-            ]
-        };
-
-        // Track index position for rotation on click
+        // Guide content (Farming Tips / Weed Identification / Calibration Guide) now lives in
+        // Firestore via guides-data.js, editable from manage_guides.html -- no longer hardcoded
+        // here, so adding or correcting a tip no longer requires a code change and redeploy.
+        const agriContentCache = {}; // populated once per topic on first click, to avoid re-fetching on every cycle click
         const topicIndices = { tips: 0, weed: 0, calibrate: 0 };
 
-        function openAgri(topic, evt) {
+        async function openAgri(topic, evt) {
             const display = document.getElementById('agri-display');
-            if (agriContentLists[topic]) {
-                const list = agriContentLists[topic];
-                const currentIndex = topicIndices[topic];
-                display.innerHTML = list[currentIndex];
-                topicIndices[topic] = (currentIndex + 1) % list.length; // Cycle through available tips
+
+            if (!agriContentCache[topic]) {
+                display.innerHTML = '<p style="color:#888;">Loading...</p>';
+                agriContentCache[topic] = await getGuidesByTopic(topic);
             }
-            
+
+            const list = agriContentCache[topic];
+            if (list.length > 0) {
+                const currentIndex = topicIndices[topic];
+                const item = list[currentIndex];
+                display.innerHTML = `<h3>${escapeHTML(item.title)}</h3><p>${escapeHTML(item.content)}</p>`;
+                topicIndices[topic] = (currentIndex + 1) % list.length; // Cycle through available entries
+            } else {
+                display.innerHTML = '<p style="color:#888;">No content published for this topic yet.</p>';
+            }
+
             // Remove active class from tabs and set active on clicked tab
             document.querySelectorAll('.agri-sidebar .tab-btn').forEach(btn => btn.classList.remove('active'));
             if (evt && evt.currentTarget) {
@@ -286,6 +270,9 @@
             loadFarmerCases();
         });
     </script>
+    <script type="module" src="firebase-init.js"></script>
+    <script src="blog-data.js"></script>
+    <script src="guides-data.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

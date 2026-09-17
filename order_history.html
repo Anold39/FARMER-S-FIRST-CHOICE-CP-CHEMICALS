@@ -48,10 +48,8 @@
         <h2 class="section-title" style="text-align:left; margin-bottom:6px;"><i class="fas fa-receipt"></i> My Orders</h2>
         <p style="color:#666; margin-bottom:20px;">Your past invoices from CP Chemicals, kept on this device.</p>
 
-        <div class="oh-note">
-            <i class="fas fa-info-circle"></i> Orders are stored on this device/browser only. If you order from a
-            different phone or computer, or clear your browser data, past orders will not appear here \u2014 always keep
-            a downloaded or emailed copy of important invoices.
+        <div class="oh-note" id="ohNote">
+            <i class="fas fa-info-circle"></i> Loading your account...
         </div>
 
         <div id="ordersList"></div>
@@ -71,6 +69,7 @@
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="module" src="firebase-init.js"></script>
     <script src="products-data.js"></script>
     <script src="invoice.js"></script>
     <script src="script.js"></script>
@@ -81,9 +80,20 @@
             );
         }
 
-        function renderOrders() {
-            const invoices = getInvoices();
+        async function renderOrders() {
+            const noteEl = document.getElementById('ohNote');
             const list = document.getElementById('ordersList');
+            const user = window.CPFirebase.auth.currentUser;
+
+            if (!user) {
+                noteEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> You need to be logged in to see your order history. <a href="farmer_login.html" style="font-weight:bold;">Log in or register</a>.`;
+                list.innerHTML = '';
+                return;
+            }
+
+            noteEl.innerHTML = `<i class="fas fa-user-check"></i> Showing orders for <b>${escapeHTMLOrders(user.displayName || 'your account')}</b> -- visible from any device you log in on.`;
+
+            const invoices = await getMyInvoices();
 
             if (invoices.length === 0) {
                 list.innerHTML = `
@@ -119,7 +129,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderOrders();
+            window.CPFirebase.ready.then(renderOrders);
+            window.CPFirebase.onAuthChange(renderOrders);
             if (typeof updateCartCountHeader === 'function') updateCartCountHeader();
         });
     </script>

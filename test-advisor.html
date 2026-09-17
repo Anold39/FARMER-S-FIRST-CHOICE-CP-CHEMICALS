@@ -74,31 +74,12 @@
             <div class="row g-2">
                 <div class="col-md-5">
                     <select id="cropType" class="form-select">
-                        <option value="">Select Crop / Subject...</option>
-                        <option value="Maize">Maize</option>
-                        <option value="Tobacco">Tobacco</option>
-                        <option value="Cotton">Cotton</option>
-                        <option value="Wheat / Cereals">Wheat / Cereals</option>
-                        <option value="Soybeans / Legumes">Soybeans / Legumes</option>
-                        <option value="Tomatoes & Veggies">Tomatoes & Veggies</option>
-                        <option value="Livestock & Farm Care">Livestock & Farm Care</option>
+                        <option value="">Loading...</option>
                     </select>
                 </div>
                 <div class="col-md-5">
                     <select id="symptomType" class="form-select">
-                        <option value="">Select Symptom / Purpose...</option>
-                        <option value="yellowing leaves">Yellowing Leaves / Top Dressing</option>
-                        <option value="stalk borer">Stem Borers / Stalk Chewers</option>
-                        <option value="leaf spot">Fungal Leaf Spots & Rust</option>
-                        <option value="armyworm">Armyworm Attack</option>
-                        <option value="aphid">Aphids & Sap-Suckers</option>
-                        <option value="broadleaf weeds">Broadleaf Weeds & Clearing</option>
-                        <option value="powdery mildew">Powdery Mildew & Mold</option>
-                        <option value="blight">Blight Protection</option>
-                        <option value="termite">Termites & Subterranean Pests</option>
-                        <option value="tick">Ticks & Parasites (Livestock)</option>
-                        <option value="rodent">Rodents & Store Pests</option>
-                        <option value="knapsack">Sprayers & Safety Equipment</option>
+                        <option value="">Loading...</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -156,8 +137,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="firebase-init.js"></script>
 <script src="products-data.js"></script>
 <script src="diagnosis-log.js"></script>
+<script src="escalations-data.js"></script>
+<script src="dropdown-options-data.js"></script>
 <script>
     // Complete AI Knowledge Base (28 Products)
     // aiKnowledgeBaseProducts removed from here -- product data (including diagnostic keywords) now
@@ -168,7 +152,30 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         escalationModalObj = new bootstrap.Modal(document.getElementById('escalationModal'));
+        populateDropdowns();
     });
+
+    function escapeHTMLOption(str) {
+        return String(str == null ? '' : str).replace(/[&<>'"]/g,
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+
+    async function populateDropdowns() {
+        const cropSelect = document.getElementById('cropType');
+        const symptomSelect = document.getElementById('symptomType');
+
+        const [crops, symptoms] = await Promise.all([
+            getOptionsByType('crop'),
+            getOptionsByType('symptom')
+        ]);
+
+        cropSelect.innerHTML = '<option value="">Select Crop / Subject...</option>' +
+            crops.map(c => `<option value="${escapeHTMLOption(c.value)}">${escapeHTMLOption(c.label)}</option>`).join('');
+
+        symptomSelect.innerHTML = '<option value="">Select Symptom / Purpose...</option>' +
+            symptoms.map(s => `<option value="${escapeHTMLOption(s.value)}">${escapeHTMLOption(s.label)}</option>`).join('');
+    }
 
     function appendUserMessage(text) {
         const stream = document.getElementById('chatStream');
@@ -197,7 +204,7 @@
         }
     }
 
-    function sendFreeQuery() {
+    async function sendFreeQuery() {
         const input = document.getElementById('userInput');
         const query = input.value.trim();
         if (!query) return;
@@ -205,7 +212,7 @@
         appendUserMessage(query);
         input.value = '';
 
-        const matchedProduct = findProductByQuery(query);
+        const matchedProduct = await findProductByQuery(query);
 
         if (matchedProduct) {
             renderPrescriptionCard(matchedProduct, `Matched recommended solution based on your input.`, { crop: '', symptom: '', query: query });
@@ -214,8 +221,8 @@
         }
     }
 
-    function evaluateDiagnosis(crop, symptom) {
-        const matchedProduct = findProductByQuery(symptom);
+    async function evaluateDiagnosis(crop, symptom) {
+        const matchedProduct = await findProductByQuery(symptom);
 
         if (matchedProduct) {
             renderPrescriptionCard(matchedProduct, `Recommended solution for <strong>${escapeHTML(crop)}</strong> displaying <strong>${escapeHTML(symptom)}</strong>.`, { crop: crop, symptom: symptom, query: `${crop} with ${symptom}` });
@@ -229,7 +236,7 @@
     // mini-dissertation (Section 12.3.3) at the level this prototype's data model actually supports.
     const SANITY_CHECK_QTY_THRESHOLD = 20;
 
-    function renderPrescriptionCard(product, contextNote, diagnosisContext = {}, logThis = true) {
+    async function renderPrescriptionCard(product, contextNote, diagnosisContext = {}, logThis = true) {
         const cardId = 'card_' + Date.now();
         const status = getStockStatus(product.stock);
         const outOfStock = product.stock <= 0;
@@ -241,7 +248,7 @@
         // (see checkEscalationStatus), so the diagnosis history doesn't double-count one interaction.
         if (logThis) {
             const farmerNameVal = (document.getElementById('advisorFarmerName') || {}).value || '';
-            logDiagnosis({
+            await logDiagnosis({
                 source: 'AI Advisory Portal',
                 farmerName: farmerNameVal,
                 crop: diagnosisContext.crop || '',
@@ -342,8 +349,8 @@
         localStorage.setItem('cp_cart', JSON.stringify(cart));
     }
 
-    function handleAddToCartClick(productName, unitPrice, cardId) {
-        const product = findProductByName(productName);
+    async function handleAddToCartClick(productName, unitPrice, cardId) {
+        const product = await findProductByName(productName);
         const qtyInput = document.getElementById(`qty_${cardId}`);
         let qty = parseInt(qtyInput ? qtyInput.value : 1) || 1;
         if (product && qty > product.stock) {
@@ -357,8 +364,8 @@
         alert(`✅ Added ${qty} x "${productName}" to your cart!`);
     }
 
-    function proceedToCheckout(productName, unitPrice, cardId) {
-        const product = findProductByName(productName);
+    async function proceedToCheckout(productName, unitPrice, cardId) {
+        const product = await findProductByName(productName);
         const qtyInput = document.getElementById(`qty_${cardId}`);
         let qty = parseInt(qtyInput ? qtyInput.value : 1) || 1;
         if (product && qty > product.stock) {
@@ -391,7 +398,7 @@
         escalationModalObj.show();
     }
 
-    function submitEscalation(event) {
+    async function submitEscalation(event) {
         event.preventDefault();
 
         const cropVal = document.getElementById('cropType').value || 'Unspecified';
@@ -400,52 +407,46 @@
         const nameVal = document.getElementById('farmerName').value.trim();
         const phoneVal = document.getElementById('farmerPhone').value.trim();
 
-        const newEscalation = {
-            id: 'ESC-' + Math.floor(1000 + Math.random() * 9000),
-            timestamp: new Date().toLocaleString(),
-            farmerName: nameVal,
-            farmerPhone: phoneVal,
-            crop: cropVal,
-            symptom: symptomVal,
-            userQuery: queryVal,
-            status: 'Pending'
-        };
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
 
-        const escalations = JSON.parse(localStorage.getItem('cp_ai_escalations')) || [];
-        escalations.unshift(newEscalation);
-        localStorage.setItem('cp_ai_escalations', JSON.stringify(escalations));
-
-        alert('Your query has been escalated to CP Chemicals agronomists. We will contact you shortly!');
-        document.getElementById('escalationForm').reset();
-        escalationModalObj.hide();
+        try {
+            await submitEscalationRecord(nameVal, phoneVal, cropVal, symptomVal, queryVal);
+            alert('Your query has been escalated to CP Chemicals agronomists. We will contact you shortly!');
+            document.getElementById('escalationForm').reset();
+            escalationModalObj.hide();
+        } catch (err) {
+            alert('Could not submit your escalation right now. Please check your connection and try again.');
+            console.error('[test-advisor] submitEscalation failed:', err);
+        } finally {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Escalation'; }
+        }
     }
 
     // Checks for agronomist responses to this farmer's past escalations, on this same device/browser.
     // Demonstrates, at prototype scale, how a resolved AI-escalation loop would close back to the farmer
     // in the full target system (see companion mini-dissertation and Chapter Four, Section 4.1 on the
     // per-browser storage limitation this check is subject to).
-    function checkEscalationStatus() {
+    async function checkEscalationStatus() {
         const nameVal = (document.getElementById('advisorFarmerName').value || '').trim();
         if (!nameVal) {
             appendAIMessage(`<div class="text-danger small">Please enter your name above first, then click "Check My Escalation Status" -- this is how we match you to your past query.</div>`);
             return;
         }
 
-        const escalations = JSON.parse(localStorage.getItem('cp_ai_escalations')) || [];
-        const nameLower = nameVal.toLowerCase();
-        const matches = escalations.filter(e =>
-            (e.farmerName || '').toLowerCase().trim() === nameLower && e.status === 'Resolved' && e.agronomistReply
-        );
+        const matches = await findEscalationsByFarmerName(nameVal);
 
         appendUserMessage(`Checking escalation status for "${nameVal}"...`);
 
         if (matches.length === 0) {
-            appendAIMessage(`<div class="small text-muted">No agronomist response found yet for "${escapeHTML(nameVal)}" on this device. If you recently escalated a query, your agronomist may still be reviewing it -- please check back later, or note that this only works on the same phone/browser you used to submit the original query.</div>`);
+            appendAIMessage(`<div class="small text-muted">No agronomist response found yet for "${escapeHTML(nameVal)}". If you recently escalated a query, your agronomist may still be reviewing it -- please check back later. Make sure you're entering your name exactly as you did when you submitted the original query.</div>`);
             return;
         }
 
-        matches.forEach(m => {
-            const recommendedProduct = m.recommendedProduct ? findProductByName(m.recommendedProduct) : null;
+        // for...of (not .forEach) so each escalation's product lookup is properly awaited in order,
+        // rather than several concurrent Firestore lookups racing to render in an unpredictable order.
+        for (const m of matches) {
+            const recommendedProduct = m.recommendedProduct ? await findProductByName(m.recommendedProduct) : null;
             const replyHtml = `
                 <div><strong>Response from your agronomist</strong> <span class="text-muted small">(re: your ${escapeHTML(m.crop)} / ${escapeHTML(m.symptom)} query, ${escapeHTML(m.repliedAt || m.timestamp)})</span></div>
                 <div class="prescription-card" style="border-left: 4px solid #2e7d32;">
@@ -457,7 +458,7 @@
             if (recommendedProduct) {
                 renderPrescriptionCard(recommendedProduct, `Your agronomist specifically recommended this product for your case.`, { crop: m.crop, symptom: m.symptom, query: 'Agronomist follow-up: ' + m.userQuery }, false);
             }
-        });
+        }
     }
 
     function escapeHTML(str) {

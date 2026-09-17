@@ -9,10 +9,11 @@
     <style>
         .login-body {
             background: linear-gradient(135deg, #2e7d32 0%, #1565c0 100%);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 30px 15px;
         }
 
         .login-card {
@@ -71,6 +72,7 @@
             font-size: 1rem;
             outline: none;
             transition: 0.3s;
+            box-sizing: border-box;
         }
 
         .input-group input:focus {
@@ -97,6 +99,8 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
         #errorMessage {
             color: #d32f2f;
             background: #ffebee;
@@ -105,7 +109,22 @@
             margin-top: 15px;
             font-size: 0.85rem;
             display: none;
+            text-align: left;
         }
+
+        #infoMessage {
+            color: #1565c0;
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            display: none;
+            text-align: left;
+        }
+
+        .toggle-text { font-size: 0.85rem; margin-top: 18px; }
+        .toggle-text a { color: #2e7d32; font-weight: bold; text-decoration: none; }
 
         .back-home {
             display: inline-block;
@@ -118,72 +137,141 @@
         .back-home:hover {
             color: #1565c0;
         }
-        .CP-logo2 { margin-top: 50%;}
-    </style>
-</head>
-<body class="login-body">
+        .CP-logo2 { margin-top: 0; }
 
-    <div class="login-card">
-        <img src="logo.png" alt="CP Chemicals" class="CP-logo2">
-        
-        <h2>Staff Portal</h2>
-        <p>Enter your credentials to manage inquiries.</p>
-
-        <div class="input-group">
-            <label>Username / Staff ID</label>
-            <i class="fas fa-user"></i>
-            <input type="text" id="staffID" placeholder="e.g. Admin">
-        </div>
-
-        <div class="input-group">
-            <label>Security Password</label>
-            <i class="fas fa-lock"></i>
-            <input type="password" id="staffPass" placeholder="••••••••">
-        </div>
-
-        <button class="login-btn" onclick="checkStaffAuth()">
-            Access Portal <i class="fas fa-sign-in-alt"></i>
-        </button>
-
-        <div id="errorMessage">
-            <i class="fas fa-exclamation-circle"></i> Invalid credentials. Access denied.
-        </div>
-
-        <a href="home.html" class="back-home">
-            <i class="fas fa-arrow-left"></i> Return to Main Website
-        </a>
-    </div>
-
-    <script>
-        function checkStaffAuth() {
-            const id = document.getElementById('staffID').value;
-            const pass = document.getElementById('staffPass').value;
-            const errorBox = document.getElementById('errorMessage');
-
-            // Replace 'Admin' and 'CP2026' with your preferred test credentials
-            if (id === "Admin" && pass === "CP2026") {
-                // Store the session
-                sessionStorage.setItem('staffLoggedIn', 'true');
-                // Redirect to the portal
-                window.location.href = 'staff_portal.html';
-            } else {
-                errorBox.style.display = 'block';
-                // Shake effect for feedback
-                const card = document.querySelector('.login-card');
-                card.style.animation = 'none';
-                card.offsetHeight; /* trigger reflow */
-                card.style.animation = 'shake 0.4s';
-            }
-        }
-    </script>
-
-    <style>
         @keyframes shake {
             0%, 100% {transform: translateX(0);}
             25% {transform: translateX(-10px);}
             75% {transform: translateX(10px);}
         }
     </style>
+</head>
+<body class="login-body">
+
+    <div class="login-card">
+        <img src="logo.png" alt="CP Chemicals" class="CP-logo2">
+
+        <h2 id="formTitle">Staff Login</h2>
+        <p id="formSubtitle">Enter your credentials to manage the dashboard.</p>
+
+        <div class="input-group" id="nameGroup" style="display:none;">
+            <label>Full Name</label>
+            <i class="fas fa-id-badge"></i>
+            <input type="text" id="staffName" placeholder="e.g. Anold Mbetsa">
+        </div>
+
+        <div class="input-group">
+            <label>Email Address</label>
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="staffEmail" placeholder="you@cpchemicals.co.zw">
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <i class="fas fa-lock"></i>
+            <input type="password" id="staffPass" placeholder="At least 6 characters">
+        </div>
+
+        <button class="login-btn" id="submitBtn" onclick="handleStaffAuth()">
+            Log In <i class="fas fa-sign-in-alt"></i>
+        </button>
+
+        <div id="errorMessage"></div>
+        <div id="infoMessage"></div>
+
+        <p class="toggle-text" id="toggleText">
+            New staff member? <a href="#" onclick="toggleStaffAuthMode(event)">Create an account</a>
+        </p>
+
+        <a href="home.html" class="back-home">
+            <i class="fas fa-arrow-left"></i> Return to Main Website
+        </a>
+    </div>
+
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
+    <script>
+        let isRegisterMode = false;
+
+        function toggleStaffAuthMode(evt) {
+            if (evt) evt.preventDefault();
+            isRegisterMode = !isRegisterMode;
+
+            document.getElementById('formTitle').textContent = isRegisterMode ? 'Create Staff Account' : 'Staff Login';
+            document.getElementById('formSubtitle').textContent = isRegisterMode
+                ? 'Creating an account does not grant access by itself -- an existing authorized staff member must approve your email afterwards.'
+                : 'Enter your credentials to manage the dashboard.';
+            document.getElementById('nameGroup').style.display = isRegisterMode ? 'block' : 'none';
+            document.getElementById('submitBtn').innerHTML = isRegisterMode
+                ? 'Create Account <i class="fas fa-user-plus"></i>' : 'Log In <i class="fas fa-sign-in-alt"></i>';
+            document.getElementById('toggleText').innerHTML = isRegisterMode
+                ? `Already have an account? <a href="#" onclick="toggleStaffAuthMode(event)">Log In</a>`
+                : `New staff member? <a href="#" onclick="toggleStaffAuthMode(event)">Create an account</a>`;
+            hideMessages();
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('infoMessage').style.display = 'none';
+        }
+
+        function showError(msg) {
+            const box = document.getElementById('errorMessage');
+            box.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+            box.style.display = 'block';
+            document.getElementById('infoMessage').style.display = 'none';
+            const card = document.querySelector('.login-card');
+            card.style.animation = 'none';
+            card.offsetHeight;
+            card.style.animation = 'shake 0.4s';
+        }
+
+        function showInfo(msg) {
+            const box = document.getElementById('infoMessage');
+            box.innerHTML = `<i class="fas fa-info-circle"></i> ${msg}`;
+            box.style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function describeStaffAuthError(err) {
+            const code = err && err.code;
+            if (code === 'auth/email-already-in-use') return 'An account with this email already exists. Try logging in instead.';
+            if (code === 'auth/weak-password') return 'Password must be at least 6 characters.';
+            if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') return 'Incorrect email or password.';
+            if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
+            if (err && err.message === 'NOT_AUTHORIZED_STAFF') return 'This account exists but has not been approved for staff access yet. Ask an existing staff member to add your email in Manage Staff, or complete the one-time setup step if this is the very first account.';
+            return 'Something went wrong (' + (code || (err && err.message) || 'unknown error') + '). Please try again.';
+        }
+
+        async function handleStaffAuth() {
+            const email = document.getElementById('staffEmail').value.trim();
+            const pass = document.getElementById('staffPass').value;
+            const name = document.getElementById('staffName').value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+            hideMessages();
+
+            if (!email || !pass) { showError('Please enter both an email and password.'); return; }
+            if (isRegisterMode && pass.length < 6) { showError('Password must be at least 6 characters.'); return; }
+            if (isRegisterMode && !name) { showError('Please enter your full name.'); return; }
+
+            submitBtn.disabled = true;
+
+            try {
+                if (isRegisterMode) {
+                    await createStaffAccount(email, pass, name);
+                    showInfo('Account created. It is not yet authorized for staff access -- ask an existing staff member to approve your email in Manage Staff, or complete the one-time setup step if this is the very first account on this system.');
+                    toggleStaffAuthMode();
+                } else {
+                    await loginStaffAccount(email, pass);
+                    window.location.href = 'staff_portal.html';
+                }
+            } catch (err) {
+                showError(describeStaffAuthError(err));
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+    </script>
 
 </body>
 </html>

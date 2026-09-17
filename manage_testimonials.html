@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Staff - Manage Testimonials</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary-green: #2e7d32; --light-gray: #f4f4f4; --amber: #f9a825; }
+        body { background-color: var(--light-gray); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .db-header { background: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .db-title h2 { color: #8a6d00; margin: 0; display: flex; align-items: center; gap: 10px; }
+        .btn-back { text-decoration: none; color: #666; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-back:hover { color: var(--primary-green); }
+        .content-wrap { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+        .form-card { background: white; border-radius: 12px; padding: 22px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-left: 5px solid var(--amber); }
+        .form-card h3 { margin-top: 0; color: #8a6d00; }
+        .form-card input, .form-card textarea, .form-card select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; margin-bottom: 12px; box-sizing: border-box; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr 100px; gap: 10px; }
+        .btn-amber { background: var(--amber); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .btn-amber:hover { background: #f57f17; }
+        .testimonial-item { background: white; border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid var(--amber); }
+        .testimonial-item .stars { color: var(--amber); margin-bottom: 6px; }
+        .testimonial-item p { font-style: italic; color: #555; margin: 0 0 8px; }
+        .testimonial-item h4 { margin: 0 0 10px; color: var(--primary-green); font-size: 0.95rem; }
+        .testimonial-item .actions button { font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; margin-right: 8px; }
+        .btn-edit-t { background: #e3f2fd; color: #1565c0; }
+        .btn-delete-t { background: #ffebee; color: #c62828; }
+        .edit-box { display: none; margin-top: 10px; padding: 12px; background: #f5f5f5; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
+
+    <div class="db-header">
+        <div class="db-title">
+            <h2><i class="fas fa-quote-left"></i> Manage Farmer Testimonials</h2>
+            <p style="color: #888; font-size: 0.9rem; margin-top: 5px;">Shown on the Farmer Registration page</p>
+        </div>
+        <a href="staff_portal.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="content-wrap">
+        <div class="form-card">
+            <h3><i class="fas fa-plus-circle"></i> Add a New Testimonial</h3>
+            <form id="addTestimonialForm" onsubmit="handleAddTestimonial(event)">
+                <textarea id="tQuote" rows="3" placeholder="The farmer's quote..." required></textarea>
+                <div class="form-row">
+                    <input type="text" id="tName" placeholder="Farmer name (e.g. 'Tafadzwa C.')" required>
+                    <input type="text" id="tLocation" placeholder="Location (e.g. 'Mvurwi')" required>
+                    <select id="tRating">
+                        <option value="5">5 Stars</option>
+                        <option value="4">4 Stars</option>
+                        <option value="3">3 Stars</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-amber"><i class="fas fa-plus"></i> Add Testimonial</button>
+            </form>
+        </div>
+
+        <div id="testimonialsList"></div>
+    </div>
+
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
+    <script src="testimonials-data.js"></script>
+    <script>
+        function escapeHTMLT(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        async function handleAddTestimonial(event) {
+            event.preventDefault();
+            const quote = document.getElementById('tQuote').value.trim();
+            const name = document.getElementById('tName').value.trim();
+            const location = document.getElementById('tLocation').value.trim();
+            const rating = document.getElementById('tRating').value;
+            if (!quote || !name || !location) { alert('Please fill in the quote, name and location.'); return; }
+
+            await addTestimonial(quote, name, location, rating);
+            document.getElementById('addTestimonialForm').reset();
+            await renderTestimonialsList();
+            alert('Testimonial added -- it will now appear on the Farmer Registration page.');
+        }
+
+        async function renderTestimonialsList() {
+            const listEl = document.getElementById('testimonialsList');
+            const testimonials = await getTestimonials();
+
+            if (testimonials.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; color:#888; padding:30px;">No testimonials yet.</p>';
+                return;
+            }
+
+            listEl.innerHTML = testimonials.map(t => {
+                const starIcons = '<i class="fas fa-star"></i>'.repeat(Math.max(1, Math.min(5, parseInt(t.rating) || 5)));
+                return `
+                <div class="testimonial-item">
+                    <div class="stars">${starIcons}</div>
+                    <p>"${escapeHTMLT(t.quote)}"</p>
+                    <h4>&mdash; ${escapeHTMLT(t.name)}, ${escapeHTMLT(t.location)}</h4>
+                    <div class="actions">
+                        <button class="btn-edit-t" onclick="toggleEditT('${t.firestoreId}')"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn-delete-t" onclick="handleDeleteTestimonial('${t.firestoreId}')"><i class="fas fa-trash"></i> Remove</button>
+                    </div>
+                    <div class="edit-box" id="edit-t-${t.firestoreId}">
+                        <textarea id="editQuote-${t.firestoreId}" rows="3" style="width:100%; margin-bottom:8px; padding:8px; box-sizing:border-box;">${escapeHTMLT(t.quote)}</textarea>
+                        <input type="text" id="editName-${t.firestoreId}" value="${escapeHTMLT(t.name)}" style="width:100%; margin-bottom:8px; padding:8px; box-sizing:border-box;">
+                        <input type="text" id="editLocation-${t.firestoreId}" value="${escapeHTMLT(t.location)}" style="width:100%; margin-bottom:8px; padding:8px; box-sizing:border-box;">
+                        <button class="btn-amber" onclick="saveEditT('${t.firestoreId}')">Save Changes</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleEditT(firestoreId) {
+            const box = document.getElementById(`edit-t-${firestoreId}`);
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        }
+
+        async function saveEditT(firestoreId) {
+            const quote = document.getElementById(`editQuote-${firestoreId}`).value.trim();
+            const name = document.getElementById(`editName-${firestoreId}`).value.trim();
+            const location = document.getElementById(`editLocation-${firestoreId}`).value.trim();
+            if (!quote || !name || !location) { alert('Fields cannot be empty.'); return; }
+            await updateTestimonial(firestoreId, { quote, name, location });
+            await renderTestimonialsList();
+        }
+
+        async function handleDeleteTestimonial(firestoreId) {
+            if (confirm('Remove this testimonial from the Farmer Registration page?')) {
+                await deleteTestimonial(firestoreId);
+                await renderTestimonialsList();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderTestimonialsList);
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
+    </script>
+</body>
+</html>

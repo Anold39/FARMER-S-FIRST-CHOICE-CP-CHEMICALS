@@ -73,36 +73,8 @@
        <br><h2 class="section-title">CP Chemicals Newsroom</h2>
         <p style="text-align: center; color: #666;">Official updates, seasonal guides, and corporate announcements.</p>
 
-        <div class="news-grid">
-            <article class="news-card">
-                <div class="news-body">
-                    <span class="badge">Announcement</span>
-                    <span class="news-date">April 2026</span>
-                    <h3>Celebrating 20 Years of Growth</h3>
-                    <p>Join us as we reflect on two decades of supporting Zimbabwean farmers with quality chemicals and expert advice.</p>
-                    <a href="anniversary_story.html" class="product-link">Read Full Story</a>
-                </div>
-            </article>
-
-            <article class="news-card">
-                <div class="news-body">
-                    <span class="badge">Agronomy Guide</span>
-                    <span class="news-date">March 2026</span>
-                    <h3>Preparing for the Winter Wheat Season</h3>
-                    <p>Our experts share the top 5 mistakes to avoid during the initial planting phase this year to maximize your yield.</p>
-                    <a href="wheat_guide.html" class="product-link">Read Guide</a>
-                </div>
-            </article>
-
-            <article class="news-card">
-                <div class="news-body">
-                    <span class="badge">Sustainability</span>
-                    <span class="news-date">February 2026</span>
-                    <h3>New Eco-Friendly Packaging</h3>
-                    <p>CP Chemicals is moving towards sustainable distribution with our new recyclable container initiative launching this quarter.</p>
-                    <a href="sustainability_update.html" class="product-link">Learn More</a>
-                </div>
-            </article>
+        <div class="news-grid" id="newsGrid">
+            <p style="text-align:center; color:#888; grid-column: 1/-1;">Loading...</p>
         </div>
     </main>
 
@@ -125,6 +97,45 @@
             <i class="fas fa-lock"></i> Authorized Staff Portal
         </a>
     </footer>
+
+    <script type="module" src="firebase-init.js"></script>
+    <script src="news-data.js"></script>
+    <script src="script.js"></script>
+    <script>
+        function escapeHTMLNews(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        async function renderNewsGrid() {
+            const grid = document.getElementById('newsGrid');
+            const articles = await getNewsArticles();
+
+            if (articles.length === 0) {
+                grid.innerHTML = '<p style="text-align:center; color:#888;">No articles published yet.</p>';
+                return;
+            }
+
+            grid.innerHTML = articles.map(a => {
+                // Legacy (original 3) articles link to their own existing hand-built page; every
+                // new article added via manage_news.html goes through the dynamic viewer instead.
+                const link = a.legacyUrl ? a.legacyUrl : `news_article.html?id=${a.firestoreId}`;
+                return `
+                <article class="news-card">
+                    <div class="news-body">
+                        <span class="badge">${escapeHTMLNews(a.badge)}</span>
+                        <span class="news-date">${escapeHTMLNews(a.date)}</span>
+                        <h3>${escapeHTMLNews(a.title)}</h3>
+                        <p>${escapeHTMLNews(a.excerpt)}</p>
+                        <a href="${link}" class="product-link">Read Full Story</a>
+                    </div>
+                </article>`;
+            }).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', renderNewsGrid);
+    </script>
 
 </body>
 </html>

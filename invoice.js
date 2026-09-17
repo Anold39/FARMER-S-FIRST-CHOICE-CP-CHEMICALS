@@ -1,19 +1,25 @@
 /* ==========================================================================
-   invoice.js
+   invoice.js (TIER 2 -- Firestore-backed)
    Invoice generation and sales-history support for the Sales Conversion
-   Channel. Persisted under localStorage key 'cp_invoices'. Used by
-   shop_online.html (creation), order_history.html (farmer view) and
-   staff_portal.html (staff Sales History view).
+   Channel. Persisted in the Firestore 'invoices' collection, each document
+   carrying a `uid` field tying it to the authenticated farmer who purchased
+   it -- this is what makes order history genuinely personal and visible
+   across devices, rather than per-browser as in Tier 1.
+
+   Requires the farmer to be logged in (Firebase Auth, via firebase-init.js's
+   registerFarmer/loginFarmer) before generateInvoice() will do anything --
+   an invoice with no real owner isn't meaningful non-repudiation evidence,
+   so this is enforced here rather than left to each calling page to remember.
 
    Non-repudiation note: invoice numbers, timestamps and a simple content
    checksum are recorded so that a given invoice's contents can later be
-   verified not to have been altered after the fact within this browser's
-   storage. This is NOT cryptographic signing (see mini-dissertation,
-   Section 12.3.1) -- it is an honest, lightweight illustration of the same
-   principle, appropriate to a client-only prototype with no backend.
+   verified not to have been altered after the fact. This is NOT cryptographic
+   signing (see mini-dissertation, Section 12.3.1) -- it is an honest,
+   lightweight illustration of the same principle, appropriate to a prototype
+   with no backend server of its own (Firestore's own document history and
+   Security Rules are the real integrity boundary here, not this checksum).
    ========================================================================== */
 
-/** Simple non-cryptographic checksum so an invoice's integrity can be spot-checked later. */
 function simpleChecksum(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -22,30 +28,34 @@ function simpleChecksum(str) {
     return Math.abs(hash).toString(16).toUpperCase();
 }
 
-function getInvoices() {
-    try {
-        return JSON.parse(localStorage.getItem('cp_invoices')) || [];
-    } catch (e) {
-        return [];
-    }
-}
-
-function saveInvoices(list) {
-    localStorage.setItem('cp_invoices', JSON.stringify(list));
+/** Returns the currently logged-in farmer's Firebase user, or null if nobody is logged in. */
+function getCurrentFarmer() {
+    return window.CPFirebase.auth.currentUser;
 }
 
 /**
- * Builds and persists an invoice from the current cart. Also decrements
- * stock for each line item via decrementStock() in products-data.js.
- * Returns the created invoice object.
+ * Builds and persists an invoice from the current cart, under the logged-in
+ * farmer's uid. Also decrements stock for each line item via decrementStock()
+ * in products-data.js. Returns the created invoice object, or null (with an
+ * alert shown) if nobody is logged in -- callers should check for null.
  */
-function generateInvoice(cart, farmerName, farmerPhone, paymentMethod) {
+async function generateInvoice(cart, farmerName, farmerPhone, paymentMethod) {
+    const user = getCurrentFarmer();
+    if (!user) {
+        alert('Please log in or register before completing checkout, so your order can be saved to your account and be visible on any device.');
+        return null;
+    }
+
+    const { db, collection, addDoc } = window.CPFirebase;
     const now = new Date();
-    const invoices = getInvoices();
+    // Timestamp + short random suffix rather than a sequential count -- avoids reading the whole
+    // invoices collection just to number one new invoice, and avoids two farmers checking out at
+    // the same moment ever being assigned the same invoice number.
     const invoiceNo = 'CPC-INV-' + now.getFullYear() +
         String(now.getMonth() + 1).padStart(2, '0') +
         String(now.getDate()).padStart(2, '0') + '-' +
-        String(invoices.length + 1).padStart(4, '0');
+        now.getTime().toString().slice(-6) +
+        Math.floor(Math.random() * 90 + 10);
 
     const items = cart.map(item => {
         const name = item.name || item.product || 'Unnamed Product';
@@ -56,9 +66,10 @@ function generateInvoice(cart, farmerName, farmerPhone, paymentMethod) {
     const subtotal = +items.reduce((sum, i) => sum + i.lineTotal, 0).toFixed(2);
 
     const invoice = {
+        uid: user.uid,
         invoiceNo: invoiceNo,
-        farmerName: farmerName || 'Walk-in / Unnamed Farmer',
-        farmerPhone: farmerPhone || 'Not provided',
+        farmerName: farmerName || user.displayName || 'Walk-in / Unnamed Farmer',
+        farmerPhone: farmerPhone || window.CPFirebase.syntheticEmailToPhone(user.email) || 'Not provided',
         items: items,
         subtotal: subtotal,
         total: subtotal,
@@ -70,15 +81,55 @@ function generateInvoice(cart, farmerName, farmerPhone, paymentMethod) {
     };
     invoice.checksum = simpleChecksum(JSON.stringify({ invoiceNo, items, subtotal, timestamp: invoice.timestamp }));
 
-    invoices.unshift(invoice);
-    saveInvoices(invoices);
+    await addDoc(collection(db, 'invoices'), invoice);
 
-    // Reduce stock for each purchased line, if the shared product store is available on this page.
+    // Reduce stock for each purchased line. Now that shop_online.html loads firebase-init.js as part
+    // of this migration, this succeeds for real (previously it failed gracefully -- see the console
+    // warning this same try/catch produced before Cart/Invoices was migrated).
     if (typeof decrementStock === 'function') {
-        items.forEach(i => decrementStock(i.name, i.quantity));
+        for (const i of items) {
+            try {
+                await decrementStock(i.name, i.quantity);
+            } catch (err) {
+                console.warn(`[invoice.js] Could not decrement stock for "${i.name}".`, err);
+            }
+        }
     }
 
     return invoice;
+}
+
+/** All invoices belonging to the currently logged-in farmer (order_history.html). Returns [] if not logged in. */
+async function getMyInvoices() {
+    const user = getCurrentFarmer();
+    if (!user) return [];
+    const { db, collection, query, where, getDocs } = window.CPFirebase;
+    const q = query(collection(db, 'invoices'), where('uid', '==', user.uid));
+    const snap = await getDocs(q);
+    const list = [];
+    snap.forEach(d => list.push({ firestoreId: d.id, ...d.data() }));
+    list.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+    return list;
+}
+
+/** ALL invoices across every farmer (sales_history.html, staff-only page already gated by sessionStorage). */
+async function getAllInvoices() {
+    const { db, collection, getDocs } = window.CPFirebase;
+    const snap = await getDocs(collection(db, 'invoices'));
+    const list = [];
+    snap.forEach(d => list.push({ firestoreId: d.id, ...d.data() }));
+    list.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+    return list;
+}
+
+/** Internal helper: finds one invoice document by its human-readable invoiceNo. */
+async function findInvoiceByNo(invoiceNo) {
+    const { db, collection, query, where, getDocs } = window.CPFirebase;
+    const q = query(collection(db, 'invoices'), where('invoiceNo', '==', invoiceNo));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { firestoreId: d.id, ...d.data() };
 }
 
 function escapeHTMLInvoice(str) {
@@ -145,15 +196,15 @@ function renderInvoiceHTML(inv) {
         This invoice will be presented upon collection of goods at your selected CP Chemicals branch.<br>
         Integrity reference (non-repudiation checksum): ${escapeHTMLInvoice(inv.checksum)}<br>
         Generated by the CP Chemicals Dual-Channel System prototype. This checksum allows this invoice's
-        recorded contents to be spot-checked for alteration within this browser; it is not a substitute for
-        cryptographic signing in a production deployment.
+        recorded contents to be spot-checked for alteration; it is not a substitute for cryptographic
+        signing in a production deployment.
     </div>
 </body></html>`;
 }
 
 /** Opens the invoice in a new tab/window, ready to view or print-to-PDF via the browser's own print dialog. */
-function viewInvoice(invoiceNo) {
-    const inv = getInvoices().find(i => i.invoiceNo === invoiceNo);
+async function viewInvoice(invoiceNo) {
+    const inv = await findInvoiceByNo(invoiceNo);
     if (!inv) { alert('Invoice not found.'); return; }
     const win = window.open('', '_blank');
     win.document.write(renderInvoiceHTML(inv));
@@ -161,8 +212,8 @@ function viewInvoice(invoiceNo) {
 }
 
 /** Downloads the invoice as a standalone HTML file (opens/prints correctly in any browser, no extra libraries required). */
-function downloadInvoiceHTML(invoiceNo) {
-    const inv = getInvoices().find(i => i.invoiceNo === invoiceNo);
+async function downloadInvoiceHTML(invoiceNo) {
+    const inv = await findInvoiceByNo(invoiceNo);
     if (!inv) { alert('Invoice not found.'); return; }
     const blob = new Blob([renderInvoiceHTML(inv)], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -180,13 +231,13 @@ function downloadInvoiceHTML(invoiceNo) {
  * on pages that call this function). Falls back to the HTML download if the
  * library failed to load for any reason (e.g. offline use).
  */
-function downloadInvoicePDF(invoiceNo) {
-    const inv = getInvoices().find(i => i.invoiceNo === invoiceNo);
+async function downloadInvoicePDF(invoiceNo) {
+    const inv = await findInvoiceByNo(invoiceNo);
     if (!inv) { alert('Invoice not found.'); return; }
 
     if (typeof window.jspdf === 'undefined') {
         alert('PDF library did not load (are you offline?). Downloading as HTML instead -- open it and use your browser\'s Print > Save as PDF option.');
-        downloadInvoiceHTML(invoiceNo);
+        await downloadInvoiceHTML(invoiceNo);
         return;
     }
 
@@ -240,8 +291,8 @@ function downloadInvoicePDF(invoiceNo) {
  * client-side equivalent: no attachment is possible via mailto, but the full
  * invoice contents are included as text so nothing is lost.
  */
-function emailInvoice(invoiceNo) {
-    const inv = getInvoices().find(i => i.invoiceNo === invoiceNo);
+async function emailInvoice(invoiceNo) {
+    const inv = await findInvoiceByNo(invoiceNo);
     if (!inv) { alert('Invoice not found.'); return; }
 
     const itemLines = inv.items.map(i => `  - ${i.name}  x${i.quantity}  @ $${i.price.toFixed(2)}  = $${i.lineTotal.toFixed(2)}`).join('\n');
@@ -271,11 +322,9 @@ Integrity reference (non-repudiation checksum): ${inv.checksum}
     window.location.href = mailtoUrl;
 }
 
-function markInvoiceCollected(invoiceNo) {
-    const invoices = getInvoices();
-    const idx = invoices.findIndex(i => i.invoiceNo === invoiceNo);
-    if (idx > -1) {
-        invoices[idx].status = 'Collected';
-        saveInvoices(invoices);
-    }
+async function markInvoiceCollected(invoiceNo) {
+    const { db, doc, updateDoc } = window.CPFirebase;
+    const inv = await findInvoiceByNo(invoiceNo);
+    if (!inv) return;
+    await updateDoc(doc(db, 'invoices', inv.firestoreId), { status: 'Collected' });
 }

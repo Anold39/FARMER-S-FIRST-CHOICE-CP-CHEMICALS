@@ -117,13 +117,14 @@
         <a href="staff_login.html" style="color: #777; font-size: 0.75rem; text-decoration: none;"><i class="fas fa-lock"></i> Authorized Staff Portal</a>
     </footer>
 
+    <script type="module" src="firebase-init.js"></script>
     <script src="products-data.js"></script>
     <script src="script.js"></script>
     <script>
         // Synchronize cart count when DOM loads, and render the product table from the shared data source
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
             updateCartCountHeader();
-            renderProductTable();
+            await renderProductTable();
         });
 
         function escapeHTMLProducts(str) {
@@ -132,9 +133,10 @@
             );
         }
 
-        function renderProductTable() {
-            const products = getProducts();
+        async function renderProductTable() {
             const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#888;">Loading products...</td></tr>`;
+            const products = await getProducts();
             tbody.innerHTML = products.map(p => {
                 const status = getStockStatus(p.stock);
                 const disabled = p.stock <= 0 ? 'disabled' : '';
@@ -146,15 +148,18 @@
                         <td>${escapeHTMLProducts(p.unitSize)}</td>
                         <td>$${parseFloat(p.price).toFixed(2)}</td>
                         <td><span class="${status.cssClass}">${escapeHTMLProducts(status.label)}</span></td>
-                        <td><input type="number" id="qty-${p.id}" value="1" min="1" max="${p.stock}" class="qty-input" ${disabled}></td>
-                        <td><button class="btn-shop" ${disabled} onclick="addToCart('${escapeHTMLProducts(p.name).replace(/'/g,"\\'")}', ${p.price}, 'qty-${p.id}', this)">${p.stock <= 0 ? 'Out of Stock' : 'Add'}</button></td>
+                        <td><input type="number" id="qty-${p.firestoreId}" value="1" min="1" max="${p.stock}" class="qty-input" ${disabled}></td>
+                        <td><button class="btn-shop" ${disabled} onclick="addToCart('${escapeHTMLProducts(p.name).replace(/'/g,"\\'")}', ${p.price}, 'qty-${p.firestoreId}', this)">${p.stock <= 0 ? 'Out of Stock' : 'Add'}</button></td>
                     </tr>`;
             }).join('');
         }
 
-        // Universal Shared Cart Reader/Writer using 'cp_cart' -- now stock-aware
-        function addToCart(productName, price, qtyInputId, btnElement) {
-            const product = findProductByName(productName);
+        // Universal Shared Cart Reader/Writer using 'cp_cart' -- now stock-aware.
+        // Note: the cart itself (cp_cart) is intentionally still localStorage at this stage of Tier 2 --
+        // only Products/Inventory has been migrated to Firestore so far, per the agreed lowest-risk-first
+        // migration order (Products/Inventory, then Escalations/Diagnosis, then Cart/Invoices last).
+        async function addToCart(productName, price, qtyInputId, btnElement) {
+            const product = await findProductByName(productName);
             const qtyInput = document.getElementById(qtyInputId);
             let quantity = parseInt(qtyInput ? qtyInput.value : 1) || 1;
 

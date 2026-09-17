@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Staff - Manage AI Dropdown Options</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary-green: #2e7d32; --light-gray: #f4f4f4; --teal-dark: #00838f; }
+        body { background-color: var(--light-gray); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .db-header { background: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .db-title h2 { color: var(--teal-dark); margin: 0; display: flex; align-items: center; gap: 10px; }
+        .btn-back { text-decoration: none; color: #666; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-back:hover { color: var(--primary-green); }
+        .content-wrap { max-width: 950px; margin: 0 auto; padding: 30px 20px; }
+        .explainer { background: #e0f7fa; border-left: 4px solid var(--teal-dark); padding: 14px 18px; border-radius: 6px; font-size: 0.88rem; color: #333; margin-bottom: 25px; line-height: 1.6; }
+        .explainer strong { color: #006064; }
+        .form-card { background: white; border-radius: 12px; padding: 22px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-left: 5px solid var(--teal-dark); }
+        .form-card h3 { margin-top: 0; color: var(--teal-dark); }
+        .form-card input, .form-card select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; margin-bottom: 12px; box-sizing: border-box; }
+        .btn-teal-dark { background: var(--teal-dark); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .btn-teal-dark:hover { background: #00636f; }
+        .type-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .type-tabs button { padding: 8px 18px; border-radius: 20px; border: 2px solid var(--teal-dark); background: white; color: var(--teal-dark); font-weight: bold; cursor: pointer; }
+        .type-tabs button.active { background: var(--teal-dark); color: white; }
+        .option-item { background: white; border-radius: 10px; padding: 14px 20px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid var(--teal-dark); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .option-item .info strong { display: block; }
+        .option-item .info small { color: #888; font-family: monospace; }
+        .option-item .actions button { font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; margin-left: 8px; }
+        .btn-edit-o { background: #e3f2fd; color: #1565c0; }
+        .btn-delete-o { background: #ffebee; color: #c62828; }
+        .edit-box { display: none; margin-top: 10px; padding: 12px; background: #f5f5f5; border-radius: 8px; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="staffAuthOverlay" style="position:fixed; inset:0; background:#f4f4f4; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:15px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2.5rem; color:#2e7d32;"></i>
+        <p style="color:#666;">Verifying staff access...</p>
+    </div>
+
+    <div class="db-header">
+        <div class="db-title">
+            <h2><i class="fas fa-list-check"></i> Manage AI Dropdown Options</h2>
+            <p style="color: #888; font-size: 0.9rem; margin-top: 5px;">Crop and Symptom options shown on the AI Advisory Portal</p>
+        </div>
+        <a href="staff_portal.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="content-wrap">
+        <div class="explainer">
+            <strong>How this connects to product matching:</strong> a Symptom option's "value" is the exact
+            text the AI searches for among each product's diagnostic keywords (managed in
+            <a href="inventory_management.html">Inventory Management</a>'s CSV upload). Adding a symptom option
+            here only produces a real recommendation once at least one product's keywords actually contain that
+            same text. Adding <em>"root rot"</em> here, for example, does nothing on its own &mdash; you'd also
+            need to upload a CSV giving some product the keyword <code>root rot</code>. These two screens work
+            together: this one controls what farmers can select; Inventory Management controls what it matches to.
+        </div>
+
+        <div class="form-card">
+            <h3><i class="fas fa-plus-circle"></i> Add a New Option</h3>
+            <form id="addOptionForm" onsubmit="handleAddOption(event)">
+                <select id="optionType" required>
+                    <option value="">-- Crop or Symptom? --</option>
+                    <option value="crop">Crop / Subject</option>
+                    <option value="symptom">Symptom / Purpose</option>
+                </select>
+                <input type="text" id="optionLabel" placeholder="What farmers see (e.g. 'Root Rot / Waterlogging')" required>
+                <input type="text" id="optionValue" placeholder="Matching keyword text (e.g. 'root rot') -- lowercase, matches product keywords" required>
+                <button type="submit" class="btn-teal-dark"><i class="fas fa-plus"></i> Add Option</button>
+            </form>
+        </div>
+
+        <div class="type-tabs">
+            <button class="active" onclick="filterOptionType('crop', this)">Crop / Subject</button>
+            <button onclick="filterOptionType('symptom', this)">Symptom / Purpose</button>
+        </div>
+
+        <div id="optionsList"></div>
+    </div>
+
+    <script type="module" src="firebase-init.js"></script>
+    <script src="staff-auth-data.js"></script>
+    <script src="dropdown-options-data.js"></script>
+    <script>
+        function escapeHTMLOpt(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        let currentType = 'crop';
+
+        async function handleAddOption(event) {
+            event.preventDefault();
+            const type = document.getElementById('optionType').value;
+            const label = document.getElementById('optionLabel').value.trim();
+            const value = document.getElementById('optionValue').value.trim().toLowerCase();
+            if (!type || !label || !value) { alert('Please fill in all fields.'); return; }
+
+            await addDropdownOption(type, value, label);
+            document.getElementById('addOptionForm').reset();
+            await renderOptionsList();
+            alert(`Option added to the ${type === 'crop' ? 'Crop / Subject' : 'Symptom / Purpose'} dropdown.` +
+                (type === 'symptom' ? ' Remember: it only matches a product once that product\'s keywords include the same text.' : ''));
+        }
+
+        function filterOptionType(type, btnEl) {
+            currentType = type;
+            document.querySelectorAll('.type-tabs button').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+            renderOptionsList();
+        }
+
+        async function renderOptionsList() {
+            const listEl = document.getElementById('optionsList');
+            const options = await getOptionsByType(currentType);
+
+            if (options.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; color:#888; padding:30px;">No options yet.</p>';
+                return;
+            }
+
+            listEl.innerHTML = options.map(o => `
+                <div class="option-item">
+                    <div class="info">
+                        <strong>${escapeHTMLOpt(o.label)}</strong>
+                        <small>matches: "${escapeHTMLOpt(o.value)}"</small>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-edit-o" onclick="toggleEditO('${o.firestoreId}')"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn-delete-o" onclick="handleDeleteOption('${o.firestoreId}')"><i class="fas fa-trash"></i> Remove</button>
+                    </div>
+                    <div class="edit-box" id="edit-o-${o.firestoreId}">
+                        <input type="text" id="editLabel-${o.firestoreId}" value="${escapeHTMLOpt(o.label)}" placeholder="Label">
+                        <input type="text" id="editValue-${o.firestoreId}" value="${escapeHTMLOpt(o.value)}" placeholder="Matching value">
+                        <button class="btn-teal-dark" onclick="saveEditO('${o.firestoreId}')">Save Changes</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function toggleEditO(firestoreId) {
+            const box = document.getElementById(`edit-o-${firestoreId}`);
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        }
+
+        async function saveEditO(firestoreId) {
+            const label = document.getElementById(`editLabel-${firestoreId}`).value.trim();
+            const value = document.getElementById(`editValue-${firestoreId}`).value.trim().toLowerCase();
+            if (!label || !value) { alert('Fields cannot be empty.'); return; }
+            await updateDropdownOption(firestoreId, { label, value });
+            await renderOptionsList();
+        }
+
+        async function handleDeleteOption(firestoreId) {
+            if (confirm('Remove this option from the AI Advisory Portal dropdown?')) {
+                await deleteDropdownOption(firestoreId);
+                await renderOptionsList();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderOptionsList);
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+        requireStaffAuth().then(ok => {
+                if (ok) {
+                    const overlay = document.getElementById("staffAuthOverlay");
+                    if (overlay) overlay.style.display = "none";
+                }
+            });
+});
+    </script>
+</body>
+</html>
