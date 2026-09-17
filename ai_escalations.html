@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+        window.location.href = 'staff_login.html';
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals - AI Escalations Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .escalation-card { border-left: 4px solid #ffc107; }
+        .escalation-card.resolved { border-left-color: #198754; }
+        .reply-box { background: #f8f9fa; border-radius: 8px; padding: 14px; margin-top: 10px; }
+        .prev-reply-box { background: #e8f5e9; border-left: 3px solid #2e7d32; border-radius: 0 6px 6px 0; padding: 10px 14px; margin-top: 10px; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Agronomist Escalations Dashboard</h2>
+            <p class="text-muted mb-0">Review and respond to complex queries coming from the AI Advisory Portal. Responses are sent back to the farmer on that same portal.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="staff_portal.html" class="btn btn-outline-secondary btn-sm">
+                &larr; Back to Dashboard
+            </a>
+            <button class="btn btn-outline-danger btn-sm" onclick="clearAllEscalations()">Clear Resolved Tickets</button>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-md-8">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search by farmer name, phone, or crop..." onkeyup="renderTable()">
+                </div>
+                <div class="col-md-4">
+                    <select id="statusFilter" class="form-select" onchange="renderTable()">
+                        <option value="ALL">All Statuses</option>
+                        <option value="Pending" selected>Pending</option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSV Import / Export -->
+    <div class="card mb-3 border-start border-4 border-primary">
+        <div class="card-body">
+            <h6 class="fw-bold text-primary"><i class="bi"></i> Bulk Resolve / Export via CSV</h6>
+            <p class="small text-muted mb-2">
+                Export every ticket (including its response, if any) for offline review or record-keeping.
+                To bulk-resolve, upload a CSV with header <code>ticketId,agronomistName,response,recommendedProduct</code>
+                &mdash; useful if an agronomist reviewed several tickets offline and is uploading all the answers at once.
+                Matches existing tickets by <code>ticketId</code>; unknown ticket IDs are skipped and listed below.
+                <code>recommendedProduct</code> is optional and must exactly match a product name in the catalogue.
+            </p>
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="file" id="escalationCsvInput" accept=".csv" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-6 d-flex gap-2">
+                    <button class="btn btn-sm btn-primary" onclick="handleEscalationCSVUpload()"><i class="bi"></i> Upload &amp; Resolve</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="exportEscalationsCSV()"><i class="bi"></i> Export All as CSV</button>
+                </div>
+            </div>
+            <div id="escalationUploadResult" class="small mt-2"></div>
+        </div>
+    </div>
+
+    <!-- Escalations List -->
+    <div id="escalationList"></div>
+</div>
+
+<script src="products-data.js"></script>
+<script src="diagnosis-log.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', renderTable);
+
+    function getEscalations() {
+        return JSON.parse(localStorage.getItem('cp_ai_escalations')) || [];
+    }
+
+    function saveEscalations(list) {
+        localStorage.setItem('cp_ai_escalations', JSON.stringify(list));
+    }
+
+    function buildProductOptions(selectedName) {
+        const products = getProducts();
+        let opts = '<option value="">-- No specific product (advice only) --</option>';
+        products.forEach(p => {
+            const sel = (p.name === selectedName) ? 'selected' : '';
+            const stockNote = p.stock <= 0 ? ' (Out of stock)' : '';
+            opts += `<option value="${escapeHTML(p.name)}" ${sel}>${escapeHTML(p.name)} - $${p.price.toFixed(2)}${stockNote}</option>`;
+        });
+        return opts;
+    }
+
+    function renderTable() {
+        const listEl = document.getElementById('escalationList');
+        const filterText = document.getElementById('searchInput').value.toLowerCase();
+        const filterStatus = document.getElementById('statusFilter').value;
+
+        const escalations = getEscalations();
+
+        const filtered = escalations.filter(item => {
+            const matchesSearch = item.farmerName.toLowerCase().includes(filterText) ||
+                                  item.farmerPhone.toLowerCase().includes(filterText) ||
+                                  item.crop.toLowerCase().includes(filterText) ||
+                                  item.userQuery.toLowerCase().includes(filterText);
+            const matchesStatus = (filterStatus === 'ALL') || (item.status === filterStatus);
+            return matchesSearch && matchesStatus;
+        });
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = `<div class="card"><div class="card-body text-center text-muted py-4">No escalations match the active criteria.</div></div>`;
+            return;
+        }
+
+        listEl.innerHTML = filtered.map(item => {
+            const isResolved = item.status === 'Resolved';
+            const prevReplyHTML = item.agronomistReply ? `
+                <div class="prev-reply-box">
+                    <strong class="small text-success">Sent to farmer${item.repliedAt ? ' &middot; ' + escapeHTML(item.repliedAt) : ''}${item.respondedBy ? ' &middot; by ' + escapeHTML(item.respondedBy) : ''}:</strong>
+                    <p class="mb-1 small">${escapeHTML(item.agronomistReply)}</p>
+                    ${item.recommendedProduct ? `<span class="badge bg-success">Recommended: ${escapeHTML(item.recommendedProduct)}</span>` : ''}
+                </div>` : '';
+
+            const replyFormHTML = `
+                <div class="reply-box">
+                    <label class="form-label small fw-semibold mb-1">Your name (agronomist responding):</label>
+                    <input type="text" id="replyAgronomist_${item.id}" class="form-control form-control-sm mb-2" placeholder="e.g. Simba Moyo" value="${escapeHTML(item.respondedBy || '')}">
+                    <label class="form-label small fw-semibold mb-1">Your response to the farmer:</label>
+                    <textarea id="replyText_${item.id}" class="form-control form-control-sm mb-2" rows="2" placeholder="Type your agronomic advice here...">${escapeHTML(item.agronomistReply || '')}</textarea>
+                    <label class="form-label small fw-semibold mb-1">Recommend a product (optional):</label>
+                    <select id="replyProduct_${item.id}" class="form-select form-select-sm mb-2">
+                        ${buildProductOptions(item.recommendedProduct)}
+                    </select>
+                    <button class="btn btn-sm btn-success" onclick="sendEscalationResponse('${item.id}')">
+                        Send Response &amp; Mark Resolved
+                    </button>
+                </div>`;
+
+            return `
+            <div class="card shadow-sm mb-3 escalation-card ${isResolved ? 'resolved' : ''}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <strong>${escapeHTML(item.id)}</strong>
+                            <span class="text-muted small ms-2">${escapeHTML(item.timestamp)}</span>
+                            <div class="mt-1">
+                                <span class="fw-bold">${escapeHTML(item.farmerName)}</span>
+                                &middot; <a href="tel:${escapeHTML(item.farmerPhone)}">${escapeHTML(item.farmerPhone)}</a>
+                                &middot; <span class="badge bg-secondary">${escapeHTML(item.crop)}</span> ${escapeHTML(item.symptom)}
+                            </div>
+                        </div>
+                        <span class="badge ${item.status === 'Pending' ? 'bg-warning text-dark' : 'bg-success'}">${escapeHTML(item.status)}</span>
+                    </div>
+
+                    <p class="mt-2 mb-1"><strong>Query:</strong> ${escapeHTML(item.userQuery)}</p>
+
+                    ${prevReplyHTML}
+                    ${replyFormHTML}
+
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleStatus('${item.id}')">
+                            ${isResolved ? 'Reopen Ticket' : 'Mark Resolved (no response)'}
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function sendEscalationResponse(ticketId) {
+        const agronomistName = document.getElementById(`replyAgronomist_${ticketId}`).value.trim();
+        const replyText = document.getElementById(`replyText_${ticketId}`).value.trim();
+        const recommendedProduct = document.getElementById(`replyProduct_${ticketId}`).value;
+
+        if (!agronomistName) {
+            alert('Please enter your name so this response (and the diagnosis report it creates) is attributed correctly.');
+            return;
+        }
+        if (!replyText) {
+            alert('Please type a response before sending.');
+            return;
+        }
+
+        const escalations = getEscalations();
+        let ticketForLog = null;
+        const updated = escalations.map(item => {
+            if (item.id === ticketId) {
+                item.agronomistReply = replyText;
+                item.recommendedProduct = recommendedProduct || '';
+                item.respondedBy = agronomistName;
+                item.repliedAt = new Date().toLocaleString();
+                item.status = 'Resolved';
+                item.farmerNotified = false;
+                ticketForLog = item;
+            }
+            return item;
+        });
+        saveEscalations(updated);
+
+        // Mirror this response into the shared Diagnosis Reports history (diagnosis_reports.html),
+        // distinctly sourced so it isn't confused with an unassisted AI match or a fully offline
+        // direct consultation -- this is a human diagnosis that started as an AI escalation.
+        if (ticketForLog && typeof logDiagnosis === 'function') {
+            logDiagnosis({
+                source: 'Agronomist (via Escalation)',
+                farmerName: ticketForLog.farmerName,
+                crop: ticketForLog.crop,
+                symptom: ticketForLog.symptom,
+                query: ticketForLog.userQuery,
+                productRecommended: recommendedProduct || '',
+                agronomistName: agronomistName,
+                notes: `Resolved via AI Escalations ticket ${ticketId}. Response: ${replyText}`
+            });
+        }
+
+        renderTable();
+        alert('Response sent and logged to Diagnosis Reports. The farmer will see this the next time they open the AI Advisory Portal and check their escalation status (same device/browser only).');
+    }
+
+    function toggleStatus(ticketId) {
+        const escalations = getEscalations();
+        const updated = escalations.map(item => {
+            if (item.id === ticketId) {
+                item.status = item.status === 'Pending' ? 'Resolved' : 'Pending';
+            }
+            return item;
+        });
+        saveEscalations(updated);
+        renderTable();
+    }
+
+    function clearAllEscalations() {
+        if (!confirm('Are you sure you want to remove all resolved escalations?')) return;
+        const escalations = getEscalations();
+        const pendingOnly = escalations.filter(item => item.status === 'Pending');
+        saveEscalations(pendingOnly);
+        renderTable();
+    }
+
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+
+    // RFC 4180-respecting CSV line parser (a naive line.split(',') was found, during testing of the
+    // Farmer Database and Inventory CSV features, to silently corrupt any field containing a comma
+    // inside quotes -- e.g. a query or response like "yellowing, wilting leaves". Applied here from
+    // the start rather than repeating that mistake a third time.
+    function parseCSVLineEsc(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (inQuotes) {
+                if (char === '"') {
+                    if (line[i + 1] === '"') { current += '"'; i++; }
+                    else { inQuotes = false; }
+                } else {
+                    current += char;
+                }
+            } else {
+                if (char === '"') {
+                    inQuotes = true;
+                } else if (char === ',') {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+        }
+        result.push(current.trim());
+        return result;
+    }
+
+    function escapeCSVFieldEsc(val) {
+        const s = String(val == null ? '' : val);
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    }
+
+    function exportEscalationsCSV() {
+        const escalations = getEscalations();
+        if (escalations.length === 0) { alert('No escalations to export yet.'); return; }
+
+        const headers = ['Ticket ID', 'Date/Time', 'Farmer Name', 'Farmer Phone', 'Crop', 'Symptom',
+                          'Query', 'Status', 'Agronomist Response', 'Recommended Product', 'Responded By', 'Replied At'];
+        const rows = escalations.map(e => [
+            e.id, e.timestamp, e.farmerName, e.farmerPhone, e.crop, e.symptom, e.userQuery, e.status,
+            e.agronomistReply || '', e.recommendedProduct || '', e.respondedBy || '', e.repliedAt || ''
+        ].map(escapeCSVFieldEsc).join(','));
+        const csv = headers.join(',') + '\n' + rows.join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'CP_Chemicals_AI_Escalations_' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Bulk-resolves tickets from an uploaded CSV (ticketId,agronomistName,response,recommendedProduct).
+     * Mirrors sendEscalationResponse()'s effect for each matched row, including logging each resolution
+     * to the shared Diagnosis Reports history, so a bulk upload is indistinguishable in its downstream
+     * effects from resolving the same tickets one at a time through the form.
+     */
+    function importEscalationResolutionsFromCSV(csvText) {
+        const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length < 2) return { resolved: 0, errors: ["CSV appears to be empty or missing a header row."] };
+
+        const header = parseCSVLineEsc(lines[0]).map(h => h.toLowerCase());
+        const idIdx = header.indexOf('ticketid');
+        const agronomistIdx = header.indexOf('agronomistname');
+        const responseIdx = header.indexOf('response');
+        const productIdx = header.indexOf('recommendedproduct');
+
+        if (idIdx === -1 || agronomistIdx === -1 || responseIdx === -1) {
+            return { resolved: 0, errors: ["CSV header must include at least: ticketId, agronomistName, response."] };
+        }
+
+        const escalations = getEscalations();
+        let resolved = 0;
+        const errors = [];
+        const toLog = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const cols = parseCSVLineEsc(lines[i]);
+            const ticketId = cols[idIdx];
+            const agronomistName = cols[agronomistIdx];
+            const response = cols[responseIdx];
+            const recommendedProduct = productIdx > -1 ? (cols[productIdx] || '') : '';
+
+            if (!ticketId || !agronomistName || !response) {
+                errors.push(`Row ${i + 1}: missing ticketId, agronomistName, or response, skipped.`);
+                continue;
+            }
+
+            const idx = escalations.findIndex(e => e.id === ticketId);
+            if (idx === -1) {
+                errors.push(`Row ${i + 1}: ticket "${ticketId}" not found, skipped.`);
+                continue;
+            }
+
+            if (recommendedProduct && !findProductByName(recommendedProduct)) {
+                errors.push(`Row ${i + 1}: product "${recommendedProduct}" not found in catalogue \u2014 response saved without a product attached.`);
+            }
+
+            escalations[idx].agronomistReply = response;
+            escalations[idx].recommendedProduct = (recommendedProduct && findProductByName(recommendedProduct)) ? recommendedProduct : '';
+            escalations[idx].respondedBy = agronomistName;
+            escalations[idx].repliedAt = new Date().toLocaleString();
+            escalations[idx].status = 'Resolved';
+            escalations[idx].farmerNotified = false;
+            resolved++;
+            toLog.push({ ...escalations[idx] });
+        }
+
+        saveEscalations(escalations);
+
+        if (typeof logDiagnosis === 'function') {
+            toLog.forEach(t => logDiagnosis({
+                source: 'Agronomist (via Escalation)',
+                farmerName: t.farmerName,
+                crop: t.crop,
+                symptom: t.symptom,
+                query: t.userQuery,
+                productRecommended: t.recommendedProduct || '',
+                agronomistName: t.respondedBy,
+                notes: `Resolved via bulk CSV upload, AI Escalations ticket ${t.id}. Response: ${t.agronomistReply}`
+            }));
+        }
+
+        return { resolved, errors };
+    }
+
+    function handleEscalationCSVUpload() {
+        const fileInput = document.getElementById('escalationCsvInput');
+        const resultBox = document.getElementById('escalationUploadResult');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            resultBox.innerHTML = '<span class="text-danger">Please choose a CSV file first.</span>';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const result = importEscalationResolutionsFromCSV(e.target.result);
+            if (result.resolved === 0 && result.errors.length > 0) {
+                resultBox.innerHTML = '<span class="text-danger"><strong>Upload failed:</strong><br>' + result.errors.map(escapeHTML).join('<br>') + '</span>';
+            } else {
+                resultBox.innerHTML = '<span class="text-success"><strong>' + result.resolved + ' ticket(s) resolved and logged to Diagnosis Reports.</strong></span>' +
+                    (result.errors.length > 0 ? '<br><span class="text-warning">Some rows were skipped:</span><br>' + result.errors.map(escapeHTML).join('<br>') : '');
+                renderTable();
+            }
+        };
+        reader.readAsText(fileInput.files[0]);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Latest News | CP Chemicals</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Fix for hidden heading under fixed header */
+        main {
+            padding-top: 120px; /* Adjust this value if your header is taller */
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .news-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: 0.3s;
+            border-top: 5px solid #2e7d32;
+        }
+        .news-card:hover { transform: translateY(-5px); }
+        
+        .news-body { padding: 25px; }
+        
+        .badge {
+            background: #2e7d32;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .news-date { color: #777; font-size: 0.85rem; margin-top: 10px; display: block; }
+        .news-body h3 { margin: 15px 0 10px 0; color: #1a1a1a; }
+        .news-body p { color: #555; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html" class="logo-link">
+                    <img src="20th Anniversary.png" alt="20th Anniversary" class="Anniversary">
+                    <span class="intro-hint"><i class="fas fa-play-circle"></i> </span>
+                </a>
+            </div>
+            <ul class="nav-links">
+                <li><button><a href="home.html">Home</a></button></li>
+                <li><button><a href="who_we_are.html">Who We Are</a></button></li>
+                <li><button><a href="products.html">Products</a></button></li>
+                <li><button><a href="agritalk.html">Agri-Talk</a></button></li>
+                <li><button><a href="branches.html">Branches</a></button></li>
+                <li><button><a href="shop_online.html" class="btn-shop">
+                    <i class="fas fa-shopping-cart"></i> Cart (<span id="cart-count">0</span>)
+                </a></button></li>
+                <li><button><a href="order_history.html">My Orders</a></button></li>
+                <li><button><a href="farmer_login.html">Farmer Registration</a></button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container section-margin">
+       <br><h2 class="section-title">CP Chemicals Newsroom</h2>
+        <p style="text-align: center; color: #666;">Official updates, seasonal guides, and corporate announcements.</p>
+
+        <div class="news-grid">
+            <article class="news-card">
+                <div class="news-body">
+                    <span class="badge">Announcement</span>
+                    <span class="news-date">April 2026</span>
+                    <h3>Celebrating 20 Years of Growth</h3>
+                    <p>Join us as we reflect on two decades of supporting Zimbabwean farmers with quality chemicals and expert advice.</p>
+                    <a href="anniversary_story.html" class="product-link">Read Full Story</a>
+                </div>
+            </article>
+
+            <article class="news-card">
+                <div class="news-body">
+                    <span class="badge">Agronomy Guide</span>
+                    <span class="news-date">March 2026</span>
+                    <h3>Preparing for the Winter Wheat Season</h3>
+                    <p>Our experts share the top 5 mistakes to avoid during the initial planting phase this year to maximize your yield.</p>
+                    <a href="wheat_guide.html" class="product-link">Read Guide</a>
+                </div>
+            </article>
+
+            <article class="news-card">
+                <div class="news-body">
+                    <span class="badge">Sustainability</span>
+                    <span class="news-date">February 2026</span>
+                    <h3>New Eco-Friendly Packaging</h3>
+                    <p>CP Chemicals is moving towards sustainable distribution with our new recyclable container initiative launching this quarter.</p>
+                    <a href="sustainability_update.html" class="product-link">Learn More</a>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <footer>
+        <div class="social-links">
+            <a href="https://share.google/gHRP1nYVd6uUMx2Lu" target="_blank"><i class="fab fa-facebook-f"></i></a>
+            <a href="https://share.google/m4RnzcG3EDBcL40NN" target="_blank"><i class="fab fa-instagram"></i></a>
+            <a href="https://wa.me/263777379313" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://share.google/j2qOR9dEkIJhUSEXc" target="_blank"><i class="fab fa-x-twitter"></i></a>
+        </div>
+        <p>&copy; 2026 CP Chemicals PVT Limited. All Rights Reserved.</p>
+        
+        <p>
+            <a href="index.html" style="color: #2e7d32; font-size: 0.85rem; text-decoration: none; font-weight: bold;">
+                <i class="fas fa-play-circle"></i> Intro
+            </a>
+        </p>
+
+        <a href="staff_login.html" style="color: #777; font-size: 0.75rem; text-decoration: none;">
+            <i class="fas fa-lock"></i> Authorized Staff Portal
+        </a>
+    </footer>
+
+</body>
+</html>

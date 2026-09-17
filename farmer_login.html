@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Farmer Registration</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Testimonials Styling */
+        .testimonials-section {
+            padding: 60px 20px;
+            background: #f9f9f9;
+            text-align: center;
+        }
+        .testimonial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            max-width: 1100px;
+            margin: 40px auto 0;
+        }
+        .testimonial-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-top: 5px solid #2e7d32;
+            transition: transform 0.3s;
+        }
+        .testimonial-card:hover { transform: translateY(-5px); }
+        .testimonial-card p { font-style: italic; color: #555; line-height: 1.6; }
+        .testimonial-card h4 { margin-top: 15px; color: #2e7d32; }
+        .star-rating { color: #f1c40f; margin-bottom: 10px; }
+        
+        /* Star Rating System interaction */
+        #ratingSystem i { cursor: pointer; transition: 0.2s; font-size: 1.5rem; color: #ddd; }
+        #ratingSystem i.active { color: #f1c40f; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <div class="logo">
+                 <a href="index.html" class="logo-link">
+                <img src="20th Anniversary.png" alt="20th Anniversary" class="Anniversary">
+                <span class="intro-hint"><i class="fas fa-play-circle"></i> </span>
+                </a>
+            </div>
+            <ul class="nav-links">
+                <li><button><a href="home.html">Home</a></button></li>
+                <li><button><a href="who_we_are.html">Who We Are</a></button></li>
+                <li><button><a href="products.html">Products</a></button></li>
+                <li><button><a href="agritalk.html">Agri-Talk</a></button></li>
+                <li><button><a href="branches.html">Branches</a></button></li>
+                <li><button><a href="shop_online.html" class="btn-shop">
+                    <i class="fas fa-shopping-cart"></i> Cart (<span id="cart-count">0</span>)
+                </a></button></li>
+                <li><button><a href="order_history.html">My Orders</a></button></li>
+                <li><button><a href="farmer_login.html">Farmer Registration</a></button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container section-margin">
+        <div class="registration-wrapper">
+            <div class="benefits-panel">
+                <h2>Join the CP Farmer Network</h2>
+                <p>Register today to unlock exclusive benefits tailored for your farm's success.</p>
+                <ul class="benefit-list">
+                    <li><i class="fas fa-percentage"></i> 10% First-Order Discount</li>
+                    <li><i class="fas fa-flask"></i> Early access to new chemicals</li>
+                    <li><i class="fas fa-calendar-check"></i> Seasonal planting reminders</li>
+                    <li><i class="fas fa-star"></i> Loyalty Reward Points</li>
+                </ul>
+                
+                <p style="margin-top: 20px; font-weight: bold;">Rate your experience with us:</p>
+                <div class="stars" id="ratingSystem">
+                    <i class="fas fa-star" data-index="1"></i>
+                    <i class="fas fa-star" data-index="2"></i>
+                    <i class="fas fa-star" data-index="3"></i>
+                    <i class="fas fa-star" data-index="4"></i>
+                    <i class="fas fa-star" data-index="5"></i>
+                </div>
+            </div>
+
+            <div class="registration-form-card">
+                <h3>Farmer Registration</h3>
+                <form id="registrationForm">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="farmerName" placeholder="Enter your name" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" id="farmerPhone" placeholder="+263..." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email (Optional)</label>
+                            <input type="email" id="farmerEmail" placeholder="email@example.com">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Farm Location / District</label>
+                        <select id="farmerDistrict" required>
+                            <option value="">Select District</option>
+                            <option value="Mazowe">Mazowe</option>
+                            <option value="Mvurwi">Mvurwi</option>
+                            <option value="Bindura">Bindura</option>
+                            <option value="Harare">Harare</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Primary Crop Interest</label>
+                        <div class="checkbox-grid" id="cropCheckboxes">
+                            <label><input type="checkbox" value="Maize"> Maize</label>
+                            <label><input type="checkbox" value="Tobacco"> Tobacco</label>
+                            <label><input type="checkbox" value="Soya"> Soya</label>
+                            <label><input type="checkbox" value="Horticulture"> Horticulture</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Farm Size (Hectares)</label>
+                        <input type="number" id="farmSize" placeholder="e.g. 5">
+                    </div>
+                    
+                    <button type="submit" class="btn-shop register-btn">Create Farmer Account</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <section class="testimonials-section">
+        <h2 style="color: #2e7d32;">Farmer Testimonials</h2>
+        <p>Real stories from our network across Zimbabwe</p>
+        <div class="testimonial-grid">
+            <div class="testimonial-card">
+                <div class="star-rating"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p>"The CP Farmer discount saved me over $200 on my tobacco chemicals this season. The AI advisor is a game changer!"</p>
+                <h4>— Tafadzwa C., Mvurwi</h4>
+            </div>
+            <div class="testimonial-card">
+                <div class="star-rating"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p>"Great support from the Agronomy team. Whenever I have a pest issue, they respond almost instantly with the right solution."</p>
+                <h4>— Rumbidzai G., Mazowe</h4>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="social-links">
+            <a href="https://share.google/gHRP1nYVd6uUMx2Lu" target="_blank"><i class="fab fa-facebook-f"></i></a>
+            <a href="https://share.google/m4RnzcG3EDBcL40NN" target="_blank"><i class="fab fa-instagram"></i></a>
+            <a href="https://wa.me/263777379313" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://share.google/j2qOR9dEkIJhUSEXc" target="_blank"><i class="fab fa-x-twitter"></i></a>
+        </div>
+        <p>&copy; 2026 CP Chemicals PVT Limited. All Rights Reserved.</p>
+        <br>
+        <a href="staff_login.html" style="color: #777; font-size: 0.75rem; text-decoration: none;">
+            <i class="fas fa-lock"></i> Authorized Staff Portal
+        </a>
+    </footer>
+
+    <script>
+        // --- Star Rating Interaction ---
+        let selectedRating = 5;
+        const stars = document.querySelectorAll('#ratingSystem i');
+        
+        stars.forEach(star => {
+            star.addEventListener('click', function() {
+                selectedRating = this.getAttribute('data-index');
+                updateStars(selectedRating);
+            });
+        });
+
+        function updateStars(rating) {
+            stars.forEach(s => {
+                s.classList.toggle('active', s.getAttribute('data-index') <= rating);
+            });
+        }
+        updateStars(5); // Initial state
+
+        // --- Real-time Database Update ---
+        document.getElementById('registrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Collect Selected Crops
+            const selectedCrops = [];
+            document.querySelectorAll('#cropCheckboxes input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedCrops.push(checkbox.value);
+            });
+
+            // Basic client-side validation before saving
+            const nameVal = document.getElementById('farmerName').value.trim();
+            const phoneVal = document.getElementById('farmerPhone').value.trim();
+            const phonePattern = /^(\+263|0)[0-9]{9}$/;
+
+            if (nameVal.length < 2) {
+                alert('Please enter your full name (at least 2 characters).');
+                document.getElementById('farmerName').focus();
+                return;
+            }
+            if (!phonePattern.test(phoneVal.replace(/\s+/g, ''))) {
+                alert('Please enter a valid Zimbabwean phone number, e.g. 077XXXXXXX or +263 77XXXXXXX.');
+                document.getElementById('farmerPhone').focus();
+                return;
+            }
+
+            // Collect Data
+            const newFarmer = {
+                name: nameVal,
+                phone: phoneVal,
+                district: document.getElementById('farmerDistrict').value,
+                crops: selectedCrops.length > 0 ? selectedCrops.join(", ") : "None Selected",
+                hectares: parseFloat(document.getElementById('farmSize').value) || 0,
+                rating: selectedRating,
+                date: new Date().toLocaleDateString()
+            };
+
+            // Get existing data from localStorage
+            let database = JSON.parse(localStorage.getItem('cp_farmers')) || [];
+            
+            // Add new farmer to the start of the list
+            database.unshift(newFarmer);
+            
+            // Save back to localStorage
+            localStorage.setItem('cp_farmers', JSON.stringify(database));
+
+            // Success feedback
+            alert("Success! Account created for " + newFarmer.name + ". Welcome to the network!");
+            this.reset();
+            updateStars(5);
+        });
+    </script>
+</body>
+</html>

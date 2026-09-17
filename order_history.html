@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | My Orders</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .oh-wrap { max-width: 1000px; margin: 0 auto; padding: 120px 20px 60px; }
+        .oh-card { background: white; border-radius: 12px; padding: 22px; margin-bottom: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border-left: 5px solid #2e7d32; }
+        .oh-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        .oh-status { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+        .oh-status.awaiting { background: #fff3cd; color: #856404; }
+        .oh-status.collected { background: #d4edda; color: #155724; }
+        .oh-items { font-size: 0.9rem; color: #555; margin: 8px 0; }
+        .oh-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+        .oh-actions button { font-size: 0.82rem; padding: 8px 14px; }
+        .oh-empty { text-align: center; padding: 60px 20px; color: #888; }
+        .oh-note { background: #e3f2fd; border-left: 4px solid #1565c0; padding: 12px 16px; border-radius: 6px; font-size: 0.85rem; color: #333; margin-bottom: 25px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html" class="logo-link">
+                    <img src="20th Anniversary.png" alt="20th Anniversary" class="Anniversary">
+                    <span class="intro-hint"><i class="fas fa-play-circle"></i></span>
+                </a>
+            </div>
+            <ul class="nav-links">
+                <li><button><a href="home.html">Home</a></button></li>
+                <li><button><a href="who_we_are.html">Who We Are</a></button></li>
+                <li><button><a href="products.html">Products</a></button></li>
+                <li><button><a href="agritalk.html">Agri-Talk</a></button></li>
+                <li><button><a href="branches.html">Branches</a></button></li>
+                <li><button><a href="shop_online.html" class="btn-shop">
+                    <i class="fas fa-shopping-cart"></i> Cart (<span id="cart-count">0</span>)
+                </a></button></li>
+                <li><button><a href="farmer_login.html">Farmer Registration</a></button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="oh-wrap">
+        <h2 class="section-title" style="text-align:left; margin-bottom:6px;"><i class="fas fa-receipt"></i> My Orders</h2>
+        <p style="color:#666; margin-bottom:20px;">Your past invoices from CP Chemicals, kept on this device.</p>
+
+        <div class="oh-note">
+            <i class="fas fa-info-circle"></i> Orders are stored on this device/browser only. If you order from a
+            different phone or computer, or clear your browser data, past orders will not appear here \u2014 always keep
+            a downloaded or emailed copy of important invoices.
+        </div>
+
+        <div id="ordersList"></div>
+    </div>
+
+    <footer>
+        <div class="social-links">
+            <a href="https://share.google/gHRP1nYVd6uUMx2Lu" target="_blank"><i class="fab fa-facebook-f"></i></a>
+            <a href="https://share.google/m4RnzcG3EDBcL40NN" target="_blank"><i class="fab fa-instagram"></i></a>
+            <a href="https://wa.me/263777379313" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://share.google/j2qOR9dEkIJhUSEXc" target="_blank"><i class="fab fa-x-twitter"></i></a>
+        </div>
+        <p>&copy; 2026 CP Chemicals PVT Limited. All Rights Reserved.</p>
+        <a href="staff_login.html" style="color: #777; font-size: 0.75rem; text-decoration: none;">
+            <i class="fas fa-lock"></i> Authorized Staff Portal
+        </a>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="products-data.js"></script>
+    <script src="invoice.js"></script>
+    <script src="script.js"></script>
+    <script>
+        function escapeHTMLOrders(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function renderOrders() {
+            const invoices = getInvoices();
+            const list = document.getElementById('ordersList');
+
+            if (invoices.length === 0) {
+                list.innerHTML = `
+                    <div class="oh-empty">
+                        <i class="fas fa-box-open" style="font-size:2.5rem; color:#ccc; margin-bottom:10px;"></i>
+                        <h3>No orders yet</h3>
+                        <p>Get diagnostic advice from our <a href="test-advisor.html" style="color:#2e7d32; font-weight:bold;">AI Advisory Portal</a> or browse <a href="products.html" style="color:#2e7d32; font-weight:bold;">Products</a> to place your first order.</p>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = invoices.map(inv => {
+                const statusClass = inv.status === 'Collected' ? 'collected' : 'awaiting';
+                const itemsSummary = inv.items.map(i => `${escapeHTMLOrders(i.name)} x${i.quantity}`).join(', ');
+                return `
+                    <div class="oh-card">
+                        <div class="oh-card-header">
+                            <div>
+                                <strong>${escapeHTMLOrders(inv.invoiceNo)}</strong>
+                                <span style="color:#888; font-size:0.85rem; margin-left:10px;">${escapeHTMLOrders(inv.date)} at ${escapeHTMLOrders(inv.time)}</span>
+                            </div>
+                            <span class="oh-status ${statusClass}">${escapeHTMLOrders(inv.status)}</span>
+                        </div>
+                        <div class="oh-items">${itemsSummary}</div>
+                        <div style="font-weight:bold; color:#2e7d32;">Total: $${inv.total.toFixed(2)} &middot; ${escapeHTMLOrders(inv.paymentMethod)}</div>
+                        <div class="oh-actions">
+                            <button class="btn-shop" style="background:#2e7d32;" onclick="downloadInvoicePDF('${inv.invoiceNo}')"><i class="fas fa-file-pdf"></i> PDF</button>
+                            <button class="btn-shop" style="background:#1565c0;" onclick="emailInvoice('${inv.invoiceNo}')"><i class="fas fa-envelope"></i> Email</button>
+                            <button class="btn-shop" style="background:#666;" onclick="viewInvoice('${inv.invoiceNo}')"><i class="fas fa-eye"></i> View / Print</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderOrders();
+            if (typeof updateCartCountHeader === 'function') updateCartCountHeader();
+        });
+    </script>
+</body>
+</html>

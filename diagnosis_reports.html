@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+        window.location.href = 'staff_login.html';
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Staff - Diagnosis Reports</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary-green: #2e7d32; --dark-bg: #1a1a1a; --light-gray: #f4f4f4; --purple: #6a1b9a; }
+        body { background-color: var(--light-gray); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .db-header { background: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .db-title h2 { color: var(--purple); margin: 0; display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .content-wrap { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+        .form-card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-left: 5px solid var(--purple); }
+        .form-card h3 { margin-top: 0; color: var(--purple); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+        .form-card input, .form-card textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+        .btn-purple { background: var(--purple); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .btn-purple:hover { background: #4a148c; }
+        .btn-export { background: #1565c0; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-export:hover { background: #0d47a1; }
+        .btn-back { text-decoration: none; color: #666; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-back:hover { color: var(--primary-green); }
+        .table-wrapper { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 900px; }
+        thead { background: var(--purple); color: white; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+        tr:hover { background-color: #f9f9f9; }
+        .source-badge { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; white-space: nowrap; }
+        .source-ai { background: #e3f2fd; color: #1565c0; }
+        .source-direct { background: #f3e5f5; color: var(--purple); }
+        .source-escalation { background: #fff3e0; color: #e65100; }
+        .source-agritalk { background: #e0f2f1; color: #00695c; }
+        .action-btn { background: none; border: none; cursor: pointer; font-size: 0.95rem; }
+        .search-bar { margin-bottom: 15px; }
+        .search-bar input { width: 100%; max-width: 400px; padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+
+    <div class="db-header">
+        <div class="db-title">
+            <h2><i class="fas fa-stethoscope"></i> Diagnosis Reports</h2>
+            <p style="color: #888; font-size: 0.9rem; margin-top: 5px;">AI Advisory Portal diagnoses + direct agronomist diagnoses</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-export" onclick="exportDiagnosisLogCSV()"><i class="fas fa-file-csv"></i> Export CSV</button>
+            <a href="staff_portal.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="content-wrap">
+        <div class="form-card">
+            <h3><i class="fas fa-user-md"></i> Log a Direct Diagnosis</h3>
+            <p style="font-size:0.85rem; color:#666; margin-top:-8px;">For diagnoses made directly by an agronomist (phone call, farm visit, in-person consultation) rather than through the AI Advisory Portal. Kept in the same history for future reference.</p>
+            <form id="directDiagnosisForm" onsubmit="handleDirectDiagnosisSubmit(event)">
+                <div class="form-row">
+                    <input type="text" id="ddAgronomist" placeholder="Agronomist Name" required>
+                    <input type="text" id="ddFarmer" placeholder="Farmer Name" required>
+                    <input type="text" id="ddCrop" placeholder="Crop / Subject">
+                </div>
+                <div class="form-row">
+                    <input type="text" id="ddSymptom" placeholder="Symptom / Issue Observed">
+                    <input type="text" id="ddProduct" placeholder="Product / Treatment Recommended">
+                </div>
+                <textarea id="ddNotes" rows="3" placeholder="Additional notes (optional)" style="margin-bottom:12px;"></textarea>
+                <button type="submit" class="btn-purple"><i class="fas fa-plus"></i> Add to Diagnosis History</button>
+            </form>
+        </div>
+
+        <div class="search-bar">
+            <input type="text" id="diagnosisSearch" placeholder="Search by farmer, crop, symptom or product..." onkeyup="renderDiagnosisTable()">
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date / Time</th>
+                        <th>Source</th>
+                        <th>Farmer</th>
+                        <th>Crop / Symptom</th>
+                        <th>Product Recommended</th>
+                        <th>Agronomist</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="diagnosis-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="diagnosis-log.js"></script>
+    <script>
+        function escapeHTMLDiag(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function handleDirectDiagnosisSubmit(event) {
+            event.preventDefault();
+            const agronomist = document.getElementById('ddAgronomist').value.trim();
+            const farmer = document.getElementById('ddFarmer').value.trim();
+            if (!agronomist || !farmer) { alert('Please enter both the agronomist name and the farmer name.'); return; }
+
+            logDiagnosis({
+                source: 'Agronomist (Direct)',
+                farmerName: farmer,
+                crop: document.getElementById('ddCrop').value.trim(),
+                symptom: document.getElementById('ddSymptom').value.trim(),
+                productRecommended: document.getElementById('ddProduct').value.trim(),
+                agronomistName: agronomist,
+                notes: document.getElementById('ddNotes').value.trim()
+            });
+
+            document.getElementById('directDiagnosisForm').reset();
+            renderDiagnosisTable();
+            alert('Direct diagnosis logged successfully.');
+        }
+
+        function renderDiagnosisTable() {
+            const searchVal = (document.getElementById('diagnosisSearch').value || '').toLowerCase();
+            let log = getDiagnosisLog();
+            if (searchVal) {
+                log = log.filter(r =>
+                    (r.farmerName || '').toLowerCase().includes(searchVal) ||
+                    (r.crop || '').toLowerCase().includes(searchVal) ||
+                    (r.symptom || '').toLowerCase().includes(searchVal) ||
+                    (r.productRecommended || '').toLowerCase().includes(searchVal)
+                );
+            }
+
+            const tbody = document.getElementById('diagnosis-table-body');
+            if (log.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">No diagnosis records match.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = log.map(r => {
+                const isAI = r.source === 'AI Advisory Portal';
+                const isEscalation = r.source === 'Agronomist (via Escalation)';
+                const isAgriTalk = r.source === 'Agronomist (via Agri-Talk)';
+                const badgeClass = isAI ? 'source-ai' : (isEscalation ? 'source-escalation' : (isAgriTalk ? 'source-agritalk' : 'source-direct'));
+                return `
+                    <tr>
+                        <td><small>${escapeHTMLDiag(r.id)}</small></td>
+                        <td style="color:#888;">${escapeHTMLDiag(r.date)}<br>${escapeHTMLDiag(r.time)}</td>
+                        <td><span class="source-badge ${badgeClass}">${escapeHTMLDiag(r.source)}</span></td>
+                        <td>${escapeHTMLDiag(r.farmerName) || '<em style="color:#aaa;">Not captured</em>'}</td>
+                        <td>${escapeHTMLDiag(r.crop)}${r.symptom ? ' / ' + escapeHTMLDiag(r.symptom) : ''}</td>
+                        <td>${escapeHTMLDiag(r.productRecommended) || '<em style="color:#aaa;">None</em>'}</td>
+                        <td>${escapeHTMLDiag(r.agronomistName) || '<em style="color:#aaa;">\u2014</em>'}</td>
+                        <td style="max-width:160px;">${escapeHTMLDiag(r.notes)}</td>
+                        <td><button class="action-btn" title="Delete" onclick="handleDeleteDiagnosis('${r.id}')"><i class="fas fa-trash" style="color:#c62828;"></i></button></td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function handleDeleteDiagnosis(id) {
+            if (confirm('Remove this diagnosis record?')) {
+                deleteDiagnosisRecord(id);
+                renderDiagnosisTable();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderDiagnosisTable);
+    </script>
+</body>
+</html>

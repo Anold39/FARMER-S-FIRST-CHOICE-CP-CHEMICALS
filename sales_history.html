@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+        window.location.href = 'staff_login.html';
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Staff - Sales History</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary-green: #2e7d32; --dark-bg: #1a1a1a; --light-gray: #f4f4f4; }
+        body { background-color: var(--light-gray); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .db-header { background: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .db-title h2 { color: #1565c0; margin: 0; display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 40px; max-width: 1200px; margin: 0 auto; }
+        .stat-card { background: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-bottom: 4px solid #1565c0; }
+        .stat-card i { font-size: 2rem; color: #1565c0; margin-bottom: 10px; }
+        .stat-card h3 { margin: 10px 0; font-size: 0.85rem; color: #666; text-transform: uppercase; }
+        .stat-card p { font-size: 1.8rem; font-weight: bold; color: var(--dark-bg); margin: 0; }
+        .table-wrapper { background: white; margin: 0 auto 40px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 1200px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 800px; }
+        thead { background: #1565c0; color: white; }
+        th, td { padding: 14px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        tr:hover { background-color: #f9f9f9; }
+        .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: bold; }
+        .status-pill.awaiting { background: #fff3cd; color: #856404; }
+        .status-pill.collected { background: #d4edda; color: #155724; }
+        .action-btn { background: none; border: none; cursor: pointer; font-size: 1rem; margin-right: 10px; }
+        .btn-back { text-decoration: none; color: #666; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-back:hover { color: var(--primary-green); }
+        .btn-export { background: #1565c0; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+        .btn-export:hover { background: #0d47a1; }
+    </style>
+</head>
+<body>
+
+    <div class="db-header">
+        <div class="db-title">
+            <h2><i class="fas fa-receipt"></i> Sales History</h2>
+            <p style="color: #888; font-size: 0.9rem; margin-top: 5px;">All invoices generated on this device \u2014 non-repudiation record</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-export" onclick="exportInvoicesCSV()"><i class="fas fa-file-csv"></i> Export CSV</button>
+            <a href="staff_portal.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="stats-container">
+        <div class="stat-card"><i class="fas fa-file-invoice-dollar"></i><h3>Total Invoices</h3><p id="stat-total">0</p></div>
+        <div class="stat-card"><i class="fas fa-dollar-sign"></i><h3>Total Revenue</h3><p id="stat-revenue">$0.00</p></div>
+        <div class="stat-card"><i class="fas fa-hourglass-half"></i><h3>Awaiting Collection</h3><p id="stat-pending">0</p></div>
+        <div class="stat-card"><i class="fas fa-check-circle"></i><h3>Collected</h3><p id="stat-collected">0</p></div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Invoice No.</th>
+                    <th>Date / Time</th>
+                    <th>Farmer</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="invoice-table-body"></tbody>
+        </table>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="products-data.js"></script>
+    <script src="invoice.js"></script>
+    <script>
+        function escapeHTMLSales(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function renderSalesHistory() {
+            const invoices = getInvoices();
+            const tbody = document.getElementById('invoice-table-body');
+
+            document.getElementById('stat-total').textContent = invoices.length;
+            document.getElementById('stat-revenue').textContent = '$' + invoices.reduce((s, i) => s + i.total, 0).toFixed(2);
+            document.getElementById('stat-pending').textContent = invoices.filter(i => i.status === 'Awaiting Collection').length;
+            document.getElementById('stat-collected').textContent = invoices.filter(i => i.status === 'Collected').length;
+
+            if (invoices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 40px; color: #888;">No invoices generated yet.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = invoices.map(inv => {
+                const statusClass = inv.status === 'Collected' ? 'collected' : 'awaiting';
+                const itemsSummary = inv.items.map(i => `${escapeHTMLSales(i.name)} x${i.quantity}`).join(', ');
+                return `
+                    <tr>
+                        <td><strong>${escapeHTMLSales(inv.invoiceNo)}</strong></td>
+                        <td style="color:#888; font-size:0.85rem;">${escapeHTMLSales(inv.date)}<br>${escapeHTMLSales(inv.time)}</td>
+                        <td>${escapeHTMLSales(inv.farmerName)}<br><small style="color:#666;">${escapeHTMLSales(inv.farmerPhone)}</small></td>
+                        <td style="max-width:220px; font-size:0.85rem;">${itemsSummary}</td>
+                        <td><strong>$${inv.total.toFixed(2)}</strong></td>
+                        <td>${escapeHTMLSales(inv.paymentMethod)}</td>
+                        <td><span class="status-pill ${statusClass}">${escapeHTMLSales(inv.status)}</span></td>
+                        <td>
+                            <button class="action-btn" title="View / Print" onclick="viewInvoice('${inv.invoiceNo}')"><i class="fas fa-eye" style="color:#1565c0;"></i></button>
+                            <button class="action-btn" title="Download PDF" onclick="downloadInvoicePDF('${inv.invoiceNo}')"><i class="fas fa-file-pdf" style="color:#2e7d32;"></i></button>
+                            ${inv.status !== 'Collected' ? `<button class="action-btn" title="Mark Collected" onclick="markCollectedAndRefresh('${inv.invoiceNo}')"><i class="fas fa-box-check" style="color:#00695c;"></i> <i class="fas fa-check" style="color:#00695c;"></i></button>` : ''}
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function markCollectedAndRefresh(invoiceNo) {
+            markInvoiceCollected(invoiceNo);
+            renderSalesHistory();
+        }
+
+        function exportInvoicesCSV() {
+            const invoices = getInvoices();
+            if (invoices.length === 0) { alert('No invoices to export yet.'); return; }
+
+            function esc(v) {
+                const s = String(v == null ? '' : v);
+                return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }
+            const headers = ['Invoice No', 'Date', 'Time', 'Farmer Name', 'Farmer Phone', 'Items', 'Subtotal', 'Total', 'Payment Method', 'Status', 'Checksum'];
+            const rows = invoices.map(inv => [
+                inv.invoiceNo, inv.date, inv.time, inv.farmerName, inv.farmerPhone,
+                inv.items.map(i => `${i.name} x${i.quantity} @ $${i.price.toFixed(2)}`).join(' | '),
+                inv.subtotal.toFixed(2), inv.total.toFixed(2), inv.paymentMethod, inv.status, inv.checksum
+            ].map(esc).join(','));
+            const csv = headers.join(',') + '\n' + rows.join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'CP_Chemicals_Sales_History_' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        document.addEventListener('DOMContentLoaded', renderSalesHistory);
+    </script>
+</body>
+</html>

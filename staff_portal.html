@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+        window.location.href = 'staff_login.html';
+    }
+    </script>
+    <meta charset="UTF-8">
+    <title>CP Chemicals | Agronomist Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Specific Dashboard Styling to differentiate from the public site */
+        .admin-container { padding: 40px; background: #f4f4f4; min-height: 80vh; font-family: 'Segoe UI', sans-serif; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .admin-section-title { border-left: 5px solid var(--cp-green); padding-left: 15px; margin: 30px 0 20px 0; color: #333; }
+
+        /* Card Styles for modular UI */
+        .query-card, .blog-form-card, .manage-card { 
+            background: white; border-radius: 8px; padding: 25px; 
+            margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .query-card { display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--cp-blue); }
+        .status-pill { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; background: #ffeeba; color: #856404; font-weight: bold; }
+
+        .blog-form-card input, .blog-form-card textarea {
+            width: 100%; margin-bottom: 15px; padding: 12px;
+            border: 1px solid #ddd; border-radius: 5px; font-size: 1rem;
+        }
+
+        /* Responsive Table for Content Management */
+        #manage-posts-area table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        #manage-posts-area tr { border-bottom: 1px solid #eee; }
+        #manage-posts-area td { padding: 12px 5px; }
+
+        .btn-delete { background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
+        .btn-resolve { background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        
+        /* Dashboard Button Styles */
+        .btn-db {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 10px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+        .btn-db:hover { background: #1b5e20; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        .btn-escalations {
+            background: #ef6c00;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 10px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+        .btn-escalations:hover { background: #e65100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        .btn-logout { 
+            background: #d32f2f; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            margin-left: 10px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-logout:hover { background: #b71c1c; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .tool-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px 15px;
+            text-align: center;
+            text-decoration: none;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-top: 4px solid var(--cp-green);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .tool-card:hover { transform: translateY(-4px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
+        .tool-card i { font-size: 1.8rem; color: var(--cp-green); display: block; margin-bottom: 8px; }
+        .tool-card span { font-weight: 600; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        
+        <div class="dashboard-header">
+            <div>
+                <h2><i class="fas fa-user-shield"></i> Agronomy Response Center</h2>
+                <p>Logged in as: <b>Simba (Senior Agronomist)</b></p>
+            </div>
+            
+            <div style="display: flex; align-items: center;">
+                <a href="home.html" class="btn-shop" style="background: #666; text-decoration: none; padding: 10px 20px; border-radius: 25px; color: white; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back to Website
+                </a>
+                
+                <button class="btn-logout" onclick="logoutStaff()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <h3 class="admin-section-title">Management Tools</h3>
+        <div class="tools-grid">
+            <a href="farmer_database.html" class="tool-card">
+                <i class="fas fa-database"></i>
+                <span>Farmer Database</span>
+            </a>
+            <a href="ai_escalations.html" class="tool-card" style="border-top-color:#ef6c00;">
+                <i class="fas fa-headset"></i>
+                <span>AI Escalations</span>
+            </a>
+            <a href="sales_history.html" class="tool-card" style="border-top-color:#1565c0;">
+                <i class="fas fa-receipt"></i>
+                <span>Sales History</span>
+            </a>
+            <a href="diagnosis_reports.html" class="tool-card" style="border-top-color:#6a1b9a;">
+                <i class="fas fa-stethoscope"></i>
+                <span>Diagnosis Reports</span>
+            </a>
+            <a href="inventory_management.html" class="tool-card" style="border-top-color:#00695c;">
+                <i class="fas fa-boxes-stacked"></i>
+                <span>Inventory Management</span>
+            </a>
+        </div>
+
+        <hr>
+
+        <h3 class="admin-section-title">Live Farmer Inquiries</h3>
+        <div id="incoming-queries-area">
+            <p style="color:#999; font-style:italic; padding: 20px;">
+                <i class="fas fa-sync fa-spin"></i> Checking for new messages from farmers...
+            </p>
+        </div>
+
+        <h3 class="admin-section-title">Publish to Agri-Talk Hub</h3>
+        <div class="blog-form-card">
+            <h3><i class="fas fa-edit"></i> Create New Expert Post</h3>
+            <form id="blogForm">
+                <input type="text" id="blogTitle" placeholder="Title (e.g., Warning: Fall Armyworm Outbreak)" required>
+                <textarea id="blogContent" placeholder="Write the full expert advice here..." rows="6" required></textarea>
+                
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px dashed var(--cp-blue); margin-bottom: 20px;">
+                    <label style="display:block; margin-bottom:10px; font-weight:bold; color: var(--cp-blue);">
+                        <i class="fas fa-camera-retro"></i> Attach Media (Photos/Videos):
+                    </label>
+                    <input type="file" id="blogImage" accept="image/*,video/*" style="width:100%; cursor: pointer;">
+                </div>
+                
+               <button type="button" class="btn-shop" onclick="publishPost()" style="width:100%; padding:15px; font-size:1.1rem;">Publish Live to Agri-Talk</button>
+            </form>
+        </div>
+
+        <h3 class="admin-section-title">Manage Live Updates</h3>
+        <div class="manage-card">
+            <h3><i class="fas fa-tasks"></i> Active Feed Management</h3>
+            <div id="manage-posts-area">
+                <p style="color:#999; font-style:italic;">Loading updates...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="diagnosis-log.js"></script>
+    <script>
+        function logoutStaff() {
+            if(confirm("Are you sure you want to log out of the Agronomist Dashboard?")) {
+                sessionStorage.removeItem('staffLoggedIn');
+                window.location.href = 'staff_login.html';
+            }
+        }
+
+        // Live Communication and Dashboard Logic
+        function loadFarmerQueries() {
+            const queriesArea = document.getElementById('incoming-queries-area');
+            const queries = JSON.parse(localStorage.getItem('agronomyQueries')) || [];
+
+            if (queries.length === 0) {
+                queriesArea.innerHTML = '<p style="color:#666; padding: 20px; background: white; border-radius: 8px;">No active farmer inquiries at the moment.</p>';
+                return;
+            }
+
+            queriesArea.innerHTML = queries.map((q, idx) => `
+                <div class="query-card" style="flex-direction: column; align-items: stretch; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div>
+                            <strong style="font-size: 1.1rem; color: #2e7d32;">${escapeHTML(q.farmerName)}</strong> 
+                            <span style="color: #666; font-size: 0.9rem;">(${escapeHTML(q.branch || 'General Branch')})</span>
+                        </div>
+                        <span class="status-pill" style="background: ${q.status === 'Resolved' ? '#d4edda' : '#ffeeba'}; color: ${q.status === 'Resolved' ? '#155724' : '#856404'};">
+                            ${escapeHTML(q.status)}
+                        </span>
+                    </div>
+
+                    <p style="margin: 10px 0; font-size: 1rem; color: #333;">${escapeHTML(q.message)}</p>
+                    
+                    ${q.image ? `<div style="margin: 10px 0;"><img src="${q.image}" style="max-width: 250px; max-height: 200px; border-radius: 6px; border: 1px solid #ccc;"></div>` : ''}
+
+                    <small style="color: #888; display: block; margin-bottom: 10px;">Received: ${escapeHTML(q.timestamp)}</small>
+
+                    ${q.replies && q.replies.length > 0 ? `
+                        <div style="background: #f0f4f8; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                            <strong style="font-size: 0.85rem; color: #1a237e;">Previous Replies:</strong>
+                            ${q.replies.map(r => `<p style="margin: 4px 0; font-size: 0.9rem;">${escapeHTML(r.text)} <em style="font-size: 0.75rem; color: #777;">(${escapeHTML(r.time)})</em></p>`).join('')}
+                        </div>
+                    ` : ''}
+
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="reply-input-${idx}" placeholder="Type response to farmer..." style="flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px;">
+                        <button class="btn-resolve" onclick="sendResponse(${idx})"><i class="fas fa-paper-plane"></i> Reply</button>
+                        <button class="btn-delete" onclick="deleteQuery(${idx})"><i class="fas fa-trash"></i> Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function sendResponse(index) {
+            const replyText = document.getElementById(`reply-input-${index}`).value.trim();
+            if (!replyText) {
+                alert('Please enter a response message before sending.');
+                return;
+            }
+
+            const queries = JSON.parse(localStorage.getItem('agronomyQueries')) || [];
+            if (!queries[index].replies) queries[index].replies = [];
+
+            queries[index].replies.push({
+                text: replyText,
+                time: new Date().toLocaleString()
+            });
+            queries[index].status = 'Resolved';
+
+            localStorage.setItem('agronomyQueries', JSON.stringify(queries));
+
+            // Mirror this reply into the shared Diagnosis Reports history (diagnosis_reports.html),
+            // distinctly sourced so it isn't confused with an AI match, a fully offline direct
+            // consultation, or an AI-escalation follow-up -- this is a human reply to a farmer's
+            // Agri-Talk question.
+            if (typeof logDiagnosis === 'function') {
+                logDiagnosis({
+                    source: 'Agronomist (via Agri-Talk)',
+                    farmerName: queries[index].farmerName || '',
+                    crop: '',
+                    symptom: '',
+                    query: queries[index].message || '',
+                    productRecommended: '',
+                    agronomistName: '',
+                    notes: `Agri-Talk reply (branch: ${queries[index].branch || 'General'}): ${replyText}`
+                });
+            }
+
+            loadFarmerQueries();
+        }
+
+        function deleteQuery(index) {
+            if (confirm("Are you sure you want to delete this query?")) {
+                const queries = JSON.parse(localStorage.getItem('agronomyQueries')) || [];
+                queries.splice(index, 1);
+                localStorage.setItem('agronomyQueries', JSON.stringify(queries));
+                loadFarmerQueries();
+            }
+        }
+
+        function publishPost() {
+            const title = document.getElementById('blogTitle').value.trim();
+            const content = document.getElementById('blogContent').value.trim();
+            const imageFile = document.getElementById('blogImage').files[0];
+
+            if (!title || !content) {
+                alert('Please complete the title and content fields.');
+                return;
+            }
+
+            const processPublish = (imgData = null) => {
+                const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+                posts.unshift({
+                    id: Date.now(),
+                    title: title,
+                    content: content,
+                    image: imgData,
+                    date: new Date().toLocaleDateString()
+                });
+                localStorage.setItem('CP_BLOGS', JSON.stringify(posts));
+                alert('Post published live to Agri-Talk successfully!');
+                document.getElementById('blogForm').reset();
+                loadManagePosts();
+            };
+
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onload = e => processPublish(e.target.result);
+                reader.readAsDataURL(imageFile);
+            } else {
+                processPublish(null);
+            }
+        }
+
+        function loadManagePosts() {
+            const manageArea = document.getElementById('manage-posts-area');
+            const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+
+            if (posts.length === 0) {
+                manageArea.innerHTML = '<p style="color:#999; font-style:italic;">No published posts found.</p>';
+                return;
+            }
+
+            manageArea.innerHTML = `
+                <table>
+                    <thead>
+                        <tr style="text-align: left; background: #eee;">
+                            <th style="padding: 8px;">Title</th>
+                            <th style="padding: 8px;">Date</th>
+                            <th style="padding: 8px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${posts.map((p, i) => `
+                            <tr>
+                                <td><strong>${escapeHTML(p.title)}</strong></td>
+                                <td>${escapeHTML(p.date)}</td>
+                                <td><button class="btn-delete" onclick="deletePost(${i})">Remove</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function deletePost(index) {
+            if (confirm("Remove this post from Agri-Talk feed?")) {
+                const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+                posts.splice(index, 1);
+                localStorage.setItem('CP_BLOGS', JSON.stringify(posts));
+                loadManagePosts();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFarmerQueries();
+            loadManagePosts();
+        });
+    </script>
+
+    <script src="script.js"></script>
+</body>
+</html>

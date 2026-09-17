@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Who We Are</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Key Staff Section Styling */
+        .staff-section {
+            padding: 60px 20px;
+            background: #fdfdfd;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .staff-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            max-width: 1100px;
+            margin: 40px auto 0;
+        }
+
+        .staff-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-bottom: 4px solid #ddd;
+        }
+
+        .staff-card:hover {
+            transform: translateY(-10px);
+            border-bottom: 4px solid #2e7d32;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        }
+
+        .staff-img {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            object-fit: cover;
+            border: 3px solid #2e7d32;
+            padding: 4px;
+        }
+
+        .staff-card h4 {
+            color: #2e7d32;
+            margin: 10px 0 5px;
+            font-size: 1.25rem;
+        }
+
+        .staff-card p {
+            color: #666;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .staff-social a {
+            color: #bbb;
+            margin: 0 10px;
+            font-size: 1.2rem;
+            transition: 0.3s ease;
+        }
+
+        .staff-social a:hover {
+            color: #2e7d32;
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html" class="logo-link">
+                <img src="20th Anniversary.png" alt="20th Anniversary" class="Anniversary">
+                <span class="intro-hint"><i class="fas fa-play-circle"></i> </span>
+                </a>
+            </div>
+            <ul class="nav-links">
+                <li><button><a href="home.html">Home</a></button></li>
+                <li><button><a href="who_we_are.html">Who We Are</a></button></li>
+                <li><button><a href="products.html">Products</a></button></li>
+                <li><button><a href="agritalk.html">Agri-Talk</a></button></li>
+                <li><button><a href="branches.html">Branches</a></button></li>
+                <li><button><a href="shop_online.html" class="btn-shop">
+                    <i class="fas fa-shopping-cart"></i> Cart (<span id="cart-count">0</span>)
+                </a></button></li>
+                <li><button><a href="order_history.html">My Orders</a></button></li>
+                <li><button><a href="farmer_login.html">Farmer Registration</a></button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="section container" style="margin-top: 100px;">
+        <h2 class="section-title">Who We Are</h2>
+        
+        <div style="text-align: center; margin-bottom: 30px;">
+            <img src="logo.png" alt="CP Chemicals" class="CP-logo3">
+        </div>
+        <br>
+        <div style="text-align: center; margin-bottom: 30px;">
+            <img src="20 Years.png" alt="20th Anniversary" class="Anniversary1">
+        </div>
+
+        <div class="about-grid">
+            <div class="card">
+                <i class="fas fa-eye"></i>
+                <h3>Our Vision</h3>
+                <p>To be the leading provider of innovative agricultural solutions in Zimbabwe and beyond.</p>
+            </div>
+            
+            <div class="card">
+                <i class="fas fa-bullseye"></i>
+                <h3>Our Mission</h3>
+                <p>Empowering farmers through high-quality chemicals and expert agronomic advice.</p>
+            </div>
+            
+            <div class="card">
+                <i class="fas fa-history"></i>
+                <h3>Our History</h3>
+                <p>Founded 20 years ago, we have grown from a small distributor to a national leader in agricultural inputs.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="staff-section container">
+        <h2 class="section-title">Our Key Staff</h2>
+        <p style="text-align: center; color: #666; max-width: 700px; margin: 0 auto;">Dedicated professionals driving the future of Zimbabwean agriculture.</p>
+        
+        <div class="staff-grid">
+            <div class="staff-card">
+                <img src="Anold.jpeg" alt="Anold Mbetsa." class="staff-img">
+                <h4>Anold Mbetsa.</h4>
+                <p>Head of Agronomy</p>
+                <div class="staff-social">
+                    <a href="https://share.google/gHRP1nYVd6uUMx2Lu" target="_blank" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://wa.me/263777379313" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                    <a href="mailto:anold@cpchemicals.co.zw" title="Email"><i class="fas fa-envelope"></i></a>
+                </div>
+            </div>
+
+            <div class="staff-card">
+                <img src="ASM.jpg" alt="Mbetsa Anold." class="staff-img">
+                <h4>Mbetsa Anold.</h4>
+                <p>Managing Director</p>
+                <div class="staff-social">
+                    <a href="https://share.google/m4RnzcG3EDBcL40NN" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="https://wa.me/263777379313" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                    <a href="https://www.linkedin.com/in/anold-mbetsa-47b263371?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+
+            <div class="staff-card">
+                <img src="Simba.jpg" alt="Simbarashe Anold." class="staff-img">
+                <h4>Simbarashe Anold.</h4>
+                <p>Operations Manager</p>
+                <div class="staff-social">
+                    <a href="https://share.google/j2qOR9dEkIJhUSEXc" target="_blank" title="Twitter/X"><i class="fab fa-x-twitter"></i></a>
+                    <a href="https://wa.me/263777379313" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                    <a href="https://www.linkedin.com/in/anold-mbetsa-47b263371?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="social-links">
+            <a href="https://share.google/gHRP1nYVd6uUMx2Lu" target="_blank"><i class="fab fa-facebook-f"></i></a>
+            <a href="https://share.google/m4RnzcG3EDBcL40NN" target="_blank"><i class="fab fa-instagram"></i></a>
+            <a href="https://wa.me/263777379313" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://share.google/j2qOR9dEkIJhUSEXc" target="_blank"><i class="fab fa-x-twitter"></i></a>
+        </div>
+        <p>&copy; 2026 CP Chemicals PVT Limited. All Rights Reserved.</p>
+        
+      <p>
+       <a href="index.html" style="color: #2e7d32; font-size: 0.85rem; text-decoration: none; font-weight: bold;">
+        <i class="fas fa-play-circle"></i> Intro
+      </a>
+      </p>
+
+        <a href="staff_login.html" style="color: #777; font-size: 0.75rem; text-decoration: none;">
+            <i class="fas fa-lock"></i> Authorized Staff Portal
+        </a>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Agri-Talk Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html" class="logo-link">
+                <img src="20th Anniversary.png" alt="20th Anniversary" class="Anniversary">
+                <span class="intro-hint"><i class="fas fa-play-circle"></i> </span>
+                </a>
+            </div>
+            <ul class="nav-links">
+                <li><button><a href="home.html">Home</a></button></li>
+                <li><button><a href="who_we_are.html">Who We Are</a></button></li>
+                <li><button><a href="products.html">Products</a></button></li>
+                <li><button><a href="agritalk.html">Agri-Talk</a></button></li>
+                <li><button><a href="branches.html">Branches</a></button></li>
+                <li><button><a href="shop_online.html" class="btn-shop">
+                    <i class="fas fa-shopping-cart"></i> Cart (<span id="cart-count">0</span>)
+                </a></button></li>
+                <li><button><a href="order_history.html">My Orders</a></button></li>
+                <li><button><a href="farmer_login.html">Farmer Registration</a></button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="container section-margin">
+        <br><h2 class="section-title">Knowledge Hub & Support</h2>
+        
+        <div class="agri-platform" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 30px; align-items: start !important;">
+            
+            <div class="agri-sidebar-wrapper" style="width: 100% !important;">
+                <div class="agri-sidebar" style="margin-bottom: 20px; width: 100% !important;">
+                    <h2 style="margin-top: 0; color: #2e7d32;">Agri-Talk</h2> 
+                    <button class="tab-btn active" onclick="openAgri('tips', event)" style="width: 100% !important; margin-bottom: 10px;">Farming Tips</button>
+                    
+                    <a href="news.html" style="text-decoration: none;">
+                        <button class="tab-btn" style="width: 100% !important; margin-bottom: 10px; background-color: #1a237e; color: white;">
+                            <i class="fas fa-newspaper"></i> News & Articles
+                        </button>
+                    </a>
+
+                    <button class="tab-btn" onclick="openAgri('weed', event)" style="width: 100% !important; margin-bottom: 10px;">Weed Identification</button>
+                    <button class="tab-btn" onclick="openAgri('calibrate', event)" style="width: 100% !important; margin-bottom: 10px;">Calibration Guide</button>
+                    
+                    <a href="test-advisor.html" style="text-decoration: none;">
+                        <button class="tab-btn" style="width: 100% !important; background-color: #2e7d32; color: white; border: 2px solid #1b5e20;">
+                            <i class="fas fa-robot"></i> AI Advisory Portal
+                        </button>
+                    </a>
+                </div>
+
+                <div class="card" id="agritalk-cart-sidebar" style="border: 1px solid #eee; background: #fdfdfd; width: 100% !important;">
+                    <h3 style="font-size: 1.1rem; color: #1a237e; margin-top: 0;">
+                        <i class="fas fa-shopping-basket"></i> Quick Cart
+                    </h3>
+                    <hr>
+                    <div id="agritalk-cart-items" style="max-height: 250px; overflow-y: auto; margin-bottom: 10px;">
+                        <p style="font-size: 0.85rem; color: #666; text-align: center;">Your cart is empty.</p>
+                    </div>
+                    <div style="font-weight: bold; border-top: 1px solid #eee; padding-top: 10px; display: flex; justify-content: space-between; font-size: 0.9rem;">
+                        <span>Total:</span>
+                        <span id="agritalk-total-display">$0.00</span>
+                    </div>
+                    <button class="btn-shop" style="width:100%; padding:12px; margin-top: 15px; font-size: 0.9rem;" onclick="proceedToCheckout()">
+                        Checkout <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="agri-content" id="agri-display" style="width: 100% !important; background: white; padding: 25px; border-radius: 8px; border: 1px solid #eee; margin-top: 0; min-height: 450px;">
+                <h3 style="margin-top: 0; color: #2e7d32;">Select a topic to begin</h3>
+                <p>Expert farming advice from CP Chemicals will appear here in the right half of the screen as you select topics from the left.</p>
+            </div>
+
+        </div>
+
+        <div class="customer-ask section-margin">
+            <section class="card">
+                <h3><i class="fas fa-user-md"></i> Ask an Agronomist</h3>
+                <p>Upload photos or videos of your crop/livestock issues for expert diagnosis.</p>
+                <br>
+                <form id="agronomyForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <input type="text" id="farmerName" placeholder="Farmer Name / Farm Name" required 
+                               style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                        
+                        <select id="branchSelect" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                            <option value="General">Select Nearest Branch</option>
+                            <option value="Mount Hampden (HQ)">Mount Hampden (HQ)</option>
+                            <option value="Mvurwi Branch">Mvurwi Branch</option>
+                            <option value="Bindura Branch">Bindura Branch</option>
+                            <option value="Chegutu Branch">Chegutu Branch</option>
+                            <option value="Karoi Branch">Karoi Branch</option>
+                            <option value="Chinhoyi Branch">Chinhoyi Branch</option>
+                            <option value="Granite Side Branch">Granite Side Branch</option>
+                            <option value="Zimbabwe Agricultural Showground Branch">Zimbabwe Agricultural Showground Branch</option>
+                        </select>
+                        
+                        <textarea id="queryMessage" placeholder="Describe your crop or livestock issue in detail..." 
+                                  rows="5" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:5px;" required></textarea>
+                        
+                        <label style="display:block; margin-bottom:10px; font-weight:bold;">
+                            <i class="fas fa-paperclip"></i> Attach Photos/Video (Max 10MB):
+                        </label>
+                        <input type="file" id="mediaUpload" accept="image/*,video/*" style="margin-bottom:20px; display:block;">
+                        
+                        <button type="button" class="btn-shop" onclick="submitQuery()" style="width:100%; padding:15px; font-size:1.1rem;">
+                            Submit Case to Agronomy Dept
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Dynamic Live Feedback & Agronomist Responses Section -->
+                <div id="farmerCasesContainer" style="margin-top: 30px; border-top: 2px dashed #ddd; padding-top: 20px;">
+                    <h4 style="color: #1a237e; margin-bottom: 15px;"><i class="fas fa-comments"></i> Your Submitted Cases & Responses</h4>
+                    <div id="casesList" style="display: flex; flex-direction: column; gap: 15px;">
+                        <p style="font-size: 0.9rem; color: #777;">No previous cases submitted in this session.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+
+<footer>
+    <div class="social-links">
+        <a href="https://share.google/gHRP1nYVd6uUMx2Lu" target="_blank">
+            <i class="fab fa-facebook-f"></i>
+        </a>
+        <a href="https://share.google/m4RnzcG3EDBcL40NN" target="_blank">
+            <i class="fab fa-instagram"></i>
+        </a>
+        <a href="https://wa.me/263777379313" target="_blank">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+        <a href="https://share.google/j2qOR9dEkIJhUSEXc" target="_blank">
+            <i class="fab fa-x-twitter"></i>
+        </a>
+    </div>
+    <p>&copy; 2026 CP Chemicals PVT Limited. All Rights Reserved.</p>
+    
+     <p>
+       <a href="index.html" style="color: #2e7d32; font-size: 0.85rem; text-decoration: none; font-weight: bold;">
+        <i class="fas fa-play-circle"></i> Intro
+      </a>
+      </p>
+
+    <a href="staff_login.html" style="color: #777; font-size: 0.75rem; text-decoration: none;">
+        <i class="fas fa-lock"></i> Authorized Staff Portal
+    </a>
+</footer>
+
+   <script>
+        // Expanded Rotating Content Arrays for Interactive Clicks
+        const agriContentLists = {
+            tips: [
+                `<h3>Farming Tips (1/3): Soil Management & Nutrition</h3>
+                 <p>Ensure you check soil moisture and pH levels before applying top-dressing fertilizer. Basal fertilizer should be placed near the root zone at planting to prevent leaching during early heavy rains.</p>`,
+                `<h3>Farming Tips (2/3): Pest Control & Crop Protection</h3>
+                 <p>Rotate crop protection chemicals with different modes of action (MOA) to avoid pest resistance. Inspect under leaf surfaces early in the morning for Fall Armyworm and Red Spider Mites.</p>`,
+                `<h3>Farming Tips (3/3): Irrigation & Water Efficiency</h3>
+                 <p>Irrigate early in the morning or late evening to cut evaporative loss. Monitor soil moisture down to 30cm to ensure effective root-zone saturation without waterlogging.</p>`
+            ],
+            weed: [
+                `<h3>Weed Identification (1/3): Common Broadleaf Weeds</h3>
+                 <p><strong>Blackjack (Bidens pilosa) & Pigweed (Amaranthus):</strong> Highly competitive broadleaf weeds in Zimbabwean maize and tobacco fields. Apply <em>CP-Glyphosate 480SL</em> pre-planting or selective broadleaf herbicides early post-emergence.</p>`,
+                `<h3>Weed Identification (2/3): Problem Grasses</h3>
+                 <p><strong>Couch Grass (Cynodon dactylon) & Shamva Grass:</strong> Perennial grasses with deep stolons and rhizomes. Require systemic post-emergence herbicide applications like <em>CP-Fluazifop-p-butyl</em> in broadleaf crops.</p>`,
+                `<h3>Weed Identification (3/3): Sedges & Parasitic Weeds</h3>
+                 <p><strong>Yellow Nutsedge (Cyperus esculentus) & Witchweed (Striga):</strong> Sedges thrive in wet soils and propagate via tubers. Striga attaches to cereal roots. Use specialized soil-applied pre-emergence herbicides and crop rotation.</p>`
+            ],
+            calibrate: [
+                `<h3>Calibration Guide (1/3): Knapsack Sprayer Basics</h3>
+                 <p>Maintain a constant walking speed (approx. 1 meter per second) and maintain steady pressure at 2–3 bar to ensure uniform chemical coverage across the target swath width.</p>`,
+                `<h3>Calibration Guide (2/3): Nozzle Selection & Flow Rate</h3>
+                 <p>Use yellow flat-fan nozzles for herbicides and hollow-cone nozzles for fungicides/insecticides. Catch output in a measuring cylinder for 1 minute; replace nozzles showing over 10% variation from nominal discharge.</p>`,
+                `<h3>Calibration Guide (3/3): Dosage & Water Volume Math</h3>
+                 <p>Calculate required chemical dosage per 15L or 20L tank: <code>(Recommended Rate/Ha) ÷ (Water Volume/Ha) × Tank Capacity</code>. Never estimate chemical volume by eye.</p>`
+            ]
+        };
+
+        // Track index position for rotation on click
+        const topicIndices = { tips: 0, weed: 0, calibrate: 0 };
+
+        function openAgri(topic, evt) {
+            const display = document.getElementById('agri-display');
+            if (agriContentLists[topic]) {
+                const list = agriContentLists[topic];
+                const currentIndex = topicIndices[topic];
+                display.innerHTML = list[currentIndex];
+                topicIndices[topic] = (currentIndex + 1) % list.length; // Cycle through available tips
+            }
+            
+            // Remove active class from tabs and set active on clicked tab
+            document.querySelectorAll('.agri-sidebar .tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (evt && evt.currentTarget) {
+                evt.currentTarget.classList.add('active');
+            }
+        }
+
+        // Live Agronomy Dashboard Integration Logic
+        function submitQuery() {
+            const farmerName = document.getElementById('farmerName').value.trim();
+            const branchSelect = document.getElementById('branchSelect').value;
+            const queryMessage = document.getElementById('queryMessage').value.trim();
+            const mediaUpload = document.getElementById('mediaUpload').files[0];
+
+            if (!farmerName || !queryMessage) {
+                alert('Please enter your name and describe your agricultural issue.');
+                return;
+            }
+
+            const processSubmission = (imageData = null) => {
+                const newQuery = {
+                    id: 'CASE-' + Date.now(),
+                    farmerName: farmerName,
+                    branch: branchSelect,
+                    message: queryMessage,
+                    image: imageData,
+                    timestamp: new Date().toLocaleString(),
+                    status: 'Pending Review',
+                    replies: []
+                };
+
+                // Retrieve existing queries, append, and save back to shared storage
+                const existingQueries = JSON.parse(localStorage.getItem('agronomyQueries')) || [];
+                existingQueries.unshift(newQuery);
+                localStorage.setItem('agronomyQueries', JSON.stringify(existingQueries));
+
+                alert('Your case has been submitted successfully to the Agronomy Department!');
+                document.getElementById('agronomyForm').reset();
+                loadFarmerCases();
+            };
+
+            // Read media file if attached
+            if (mediaUpload) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    processSubmission(e.target.result);
+                };
+                reader.readAsDataURL(mediaUpload);
+            } else {
+                processSubmission(null);
+            }
+        }
+
+        // Load submitted cases and agronomist replies for the farmer
+        function loadFarmerCases() {
+            const casesList = document.getElementById('casesList');
+            const existingQueries = JSON.parse(localStorage.getItem('agronomyQueries')) || [];
+
+            if (existingQueries.length === 0) {
+                casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">No previous cases submitted in this session.</p>';
+                return;
+            }
+
+            casesList.innerHTML = existingQueries.map(c => `
+                <div style="border: 1px solid #e0e0e0; background: #fafafa; border-radius: 6px; padding: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="color: #2e7d32;">${escapeHTML(c.farmerName)} (${escapeHTML(c.branch)})</strong>
+                        <span style="font-size: 0.75rem; background: ${c.status === 'Resolved' ? '#e8f5e9' : '#fff3e0'}; color: ${c.status === 'Resolved' ? '#2e7d32' : '#e65100'}; padding: 3px 8px; border-radius: 4px; font-weight: bold;">
+                            ${escapeHTML(c.status)}
+                        </span>
+                    </div>
+                    <p style="margin: 5px 0; font-size: 0.95rem; color: #333;">${escapeHTML(c.message)}</p>${c.image ? `<img src="${c.image}" style="max-width: 150px; max-height: 150px; border-radius: 4px; margin-top: 8px; border: 1px solid #ccc; display: block;">` : ''}
+                    <small style="color: #888; display: block; margin-top: 6px;">Submitted: ${escapeHTML(c.timestamp)}</small>${c.replies && c.replies.length > 0 ? `
+                        <div style="margin-top: 12px; padding: 10px; background: #e8eaf6; border-left: 3px solid #1a237e; border-radius: 0 4px 4px 0;">
+                            <strong style="color: #1a237e; font-size: 0.85rem;"><i class="fas fa-user-md"></i> Agronomist Response:</strong>
+                            ${c.replies.map(r => `<p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #1a237e;">${escapeHTML(r.text)} <em style="font-size: 0.75rem; color: #555;">(${escapeHTML(r.time)})</em></p>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Initialize state on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFarmerCases();
+        });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

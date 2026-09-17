@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+    if (sessionStorage.getItem('staffLoggedIn') !== 'true') {
+        window.location.href = 'staff_login.html';
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CP Chemicals | Staff - Inventory Management</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary-green: #2e7d32; --dark-bg: #1a1a1a; --light-gray: #f4f4f4; --teal: #00695c; }
+        body { background-color: var(--light-gray); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .db-header { background: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .db-title h2 { color: var(--teal); margin: 0; display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items:center; }
+        .content-wrap { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+        .csv-card { background: white; border-radius: 12px; padding: 22px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-left: 5px solid var(--teal); }
+        .csv-card h3 { margin-top: 0; color: var(--teal); }
+        .csv-card code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+        .btn-teal { background: var(--teal); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; display:inline-flex; align-items:center; gap:8px; }
+        .btn-teal:hover { background: #004d40; }
+        .btn-back { text-decoration: none; color: #666; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-back:hover { color: var(--primary-green); }
+        .upload-result { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; display: none; }
+        .upload-result.success { background: #e8f5e9; color: #1b5e20; display: block; }
+        .upload-result.error { background: #ffebee; color: #b71c1c; display: block; }
+        .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-bottom: 4px solid var(--teal); }
+        .stat-card p { font-size: 1.6rem; font-weight: bold; margin: 6px 0 0; }
+        .search-bar input { width: 100%; max-width: 350px; padding: 10px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 15px; }
+        .table-wrapper { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 800px; }
+        thead { background: var(--teal); color: white; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.88rem; }
+        tr:hover { background-color: #f9f9f9; }
+        .stock-input { width: 70px; padding: 6px; border: 1px solid #ccc; border-radius: 5px; text-align: center; }
+        .stock-ok { color: #1b5e20; background: #e8f5e9; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .stock-low { color: #8a6d00; background: #fff8e1; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .stock-out { color: #b71c1c; background: #ffebee; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .btn-save-row { background: var(--teal); color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <div class="db-header">
+        <div class="db-title">
+            <h2><i class="fas fa-boxes-stacked"></i> Inventory Management</h2>
+            <p style="color: #888; font-size: 0.9rem; margin-top: 5px;">Shared stock source for the Sales Catalogue and the AI Advisory Portal</p>
+        </div>
+        <div class="header-actions">
+            <a href="staff_portal.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="content-wrap">
+        <div class="csv-card">
+            <h3><i class="fas fa-file-csv"></i> Bulk Update via CSV</h3>
+            <p style="font-size:0.85rem; color:#555;">
+                Upload a CSV with the header row <code>name,category,unitSize,price,stock,description</code>.
+                Rows matching an existing product name update its price/stock (and category/unitSize/description if
+                provided); rows with a new name are added as new products. <code>name</code>, <code>price</code> and
+                <code>stock</code> are required columns.
+            </p>
+            <input type="file" id="csvFileInput" accept=".csv" style="margin-bottom:10px;">
+            <br>
+            <button class="btn-teal" onclick="handleCSVUpload()"><i class="fas fa-upload"></i> Upload & Merge</button>
+            <button class="btn-teal" style="background:#455a64;" onclick="downloadCurrentCatalogueCSV()"><i class="fas fa-download"></i> Download Current Catalogue as CSV</button>
+            <div id="uploadResult" class="upload-result"></div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card"><h3 style="font-size:0.8rem;color:#666;text-transform:uppercase;">Total Products</h3><p id="stat-total">0</p></div>
+            <div class="stat-card"><h3 style="font-size:0.8rem;color:#666;text-transform:uppercase;">Out of Stock</h3><p id="stat-out" style="color:#b71c1c;">0</p></div>
+            <div class="stat-card"><h3 style="font-size:0.8rem;color:#666;text-transform:uppercase;">Low Stock (&le;10)</h3><p id="stat-low" style="color:#8a6d00;">0</p></div>
+            <div class="stat-card"><h3 style="font-size:0.8rem;color:#666;text-transform:uppercase;">Inventory Value</h3><p id="stat-value" style="color:#00695c;">$0.00</p></div>
+        </div>
+
+        <div class="search-bar">
+            <input type="text" id="invSearch" placeholder="Search products..." onkeyup="renderInventoryTable()">
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Unit Size</th>
+                        <th>Price</th>
+                        <th>Stock Qty</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="products-data.js"></script>
+    <script>
+        function escapeHTMLInv(str) {
+            return String(str == null ? '' : str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function renderInventoryTable() {
+            const searchVal = (document.getElementById('invSearch').value || '').toLowerCase();
+            let products = getProducts();
+
+            document.getElementById('stat-total').textContent = products.length;
+            document.getElementById('stat-out').textContent = products.filter(p => p.stock <= 0).length;
+            document.getElementById('stat-low').textContent = products.filter(p => p.stock > 0 && p.stock <= 10).length;
+            document.getElementById('stat-value').textContent = '$' + products.reduce((s, p) => s + (p.price * p.stock), 0).toFixed(2);
+
+            if (searchVal) {
+                products = products.filter(p => p.name.toLowerCase().includes(searchVal) || p.category.toLowerCase().includes(searchVal));
+            }
+
+            const tbody = document.getElementById('inventory-table-body');
+            if (products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#888;">No products match.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = products.map(p => {
+                const status = getStockStatus(p.stock);
+                return `
+                    <tr>
+                        <td><strong>${escapeHTMLInv(p.name)}</strong></td>
+                        <td>${escapeHTMLInv(p.category)}</td>
+                        <td>${escapeHTMLInv(p.unitSize)}</td>
+                        <td>$${parseFloat(p.price).toFixed(2)}</td>
+                        <td><input type="number" min="0" class="stock-input" id="stock-${p.id}" value="${p.stock}"></td>
+                        <td><span class="${status.cssClass}">${escapeHTMLInv(status.label)}</span></td>
+                        <td><button class="btn-save-row" onclick="saveStockRow(${p.id})">Save</button></td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function saveStockRow(id) {
+            const input = document.getElementById(`stock-${id}`);
+            const newStock = parseInt(input.value);
+            if (isNaN(newStock) || newStock < 0) { alert('Please enter a valid, non-negative stock quantity.'); return; }
+
+            const products = getProducts();
+            const idx = products.findIndex(p => p.id === id);
+            if (idx > -1) {
+                products[idx].stock = newStock;
+                saveProducts(products);
+                renderInventoryTable();
+            }
+        }
+
+        function handleCSVUpload() {
+            const fileInput = document.getElementById('csvFileInput');
+            const resultBox = document.getElementById('uploadResult');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultBox.className = 'upload-result error';
+                resultBox.innerHTML = 'Please choose a CSV file first.';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = importProductsFromCSV(e.target.result);
+                if (result.errors.length > 0 && result.updated === 0 && result.added === 0) {
+                    resultBox.className = 'upload-result error';
+                    resultBox.innerHTML = '<strong>Upload failed:</strong><br>' + result.errors.map(escapeHTMLInv).join('<br>');
+                } else {
+                    resultBox.className = 'upload-result success';
+                    resultBox.innerHTML = `<strong>Upload complete:</strong> ${result.updated} product(s) updated, ${result.added} product(s) added.` +
+                        (result.errors.length > 0 ? '<br><em>Some rows were skipped:</em><br>' + result.errors.map(escapeHTMLInv).join('<br>') : '');
+                    renderInventoryTable();
+                }
+            };
+            reader.readAsText(fileInput.files[0]);
+        }
+
+        function downloadCurrentCatalogueCSV() {
+            const products = getProducts();
+            function esc(v) {
+                const s = String(v == null ? '' : v);
+                return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }
+            const headers = ['name', 'category', 'unitSize', 'price', 'stock', 'description'];
+            const rows = products.map(p => [p.name, p.category, p.unitSize, p.price, p.stock, p.description].map(esc).join(','));
+            const csv = headers.join(',') + '\n' + rows.join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'CP_Chemicals_Product_Catalogue.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        document.addEventListener('DOMContentLoaded', renderInventoryTable);
+    </script>
+</body>
+</html>

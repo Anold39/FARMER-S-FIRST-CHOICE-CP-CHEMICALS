@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Login | CP Chemicals</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .login-body {
+            background: linear-gradient(135deg, #2e7d32 0%, #1565c0 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-card img {
+            height: 80px;
+            margin-bottom: 20px;
+        }
+
+        .login-card h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+
+        .login-card p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 15px;
+            top: 38px;
+            color: #2e7d32;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+            color: #1565c0;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 12px 12px 40px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: #2e7d32;
+            box-shadow: 0 0 5px rgba(46, 125, 50, 0.2);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            background: #1b5e20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        #errorMessage {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .back-home {
+            display: inline-block;
+            margin-top: 20px;
+            color: #777;
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+
+        .back-home:hover {
+            color: #1565c0;
+        }
+        .CP-logo2 { margin-top: 50%;}
+    </style>
+</head>
+<body class="login-body">
+
+    <div class="login-card">
+        <img src="logo.png" alt="CP Chemicals" class="CP-logo2">
+        
+        <h2>Staff Portal</h2>
+        <p>Enter your credentials to manage inquiries.</p>
+
+        <div class="input-group">
+            <label>Username / Staff ID</label>
+            <i class="fas fa-user"></i>
+            <input type="text" id="staffID" placeholder="e.g. Admin">
+        </div>
+
+        <div class="input-group">
+            <label>Security Password</label>
+            <i class="fas fa-lock"></i>
+            <input type="password" id="staffPass" placeholder="••••••••">
+        </div>
+
+        <button class="login-btn" onclick="checkStaffAuth()">
+            Access Portal <i class="fas fa-sign-in-alt"></i>
+        </button>
+
+        <div id="errorMessage">
+            <i class="fas fa-exclamation-circle"></i> Invalid credentials. Access denied.
+        </div>
+
+        <a href="home.html" class="back-home">
+            <i class="fas fa-arrow-left"></i> Return to Main Website
+        </a>
+    </div>
+
+    <script>
+        function checkStaffAuth() {
+            const id = document.getElementById('staffID').value;
+            const pass = document.getElementById('staffPass').value;
+            const errorBox = document.getElementById('errorMessage');
+
+            // Replace 'Admin' and 'CP2026' with your preferred test credentials
+            if (id === "Admin" && pass === "CP2026") {
+                // Store the session
+                sessionStorage.setItem('staffLoggedIn', 'true');
+                // Redirect to the portal
+                window.location.href = 'staff_portal.html';
+            } else {
+                errorBox.style.display = 'block';
+                // Shake effect for feedback
+                const card = document.querySelector('.login-card');
+                card.style.animation = 'none';
+                card.offsetHeight; /* trigger reflow */
+                card.style.animation = 'shake 0.4s';
+            }
+        }
+    </script>
+
+    <style>
+        @keyframes shake {
+            0%, 100% {transform: translateX(0);}
+            25% {transform: translateX(-10px);}
+            75% {transform: translateX(10px);}
+        }
+    </style>
+
+</body>
+</html>

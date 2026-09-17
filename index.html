@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to CP Chemicals</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Prevents scrolling on the welcome page */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Video Background Container */
+        .video-background {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            z-index: -1;
+        }
+
+        /* Dark Overlay to make text pop */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4); /* Adjust transparency as needed */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+
+        .welcome-content h1 {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .welcome-content p {
+            font-size: 1.5rem;
+            max-width: 800px;
+            margin-bottom: 30px;
+        }
+
+        /* The Next Button */
+        .btn-next {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background-color: #2e7d32; /* CP Chemicals Green */
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.3s;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-next:hover {
+            background-color: #1b5e20;
+            transform: scale(1.05);
+        }
+
+        /* Footer inside the overlay */
+        .welcome-footer {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+        }
+    </style>
+</head>
+<body>
+
+    <video autoplay muted loop playsinline class="video-background">
+        <source src="Spraying .mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <div class="overlay">
+        <div class="welcome-content">
+            <img src="CPC.jpeg" alt="CP Products" style="width: 130px; margin-bottom: 20px;">
+            <h1>CP Chemicals</h1>
+            <p>Providing Zimbabwe's Top Chemical Solutions for 20 Years. <br> Leading the way in precision agricultural spraying and innovation.</p>
+            
+            <a href="home.html" class="btn-next">
+                Explore Our Site <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="welcome-footer">
+            &copy; 2026 CP Chemicals PVT Limited. Farmers' First Choice.
+        </div>
+    </div>
+
+</body>
+</html>
