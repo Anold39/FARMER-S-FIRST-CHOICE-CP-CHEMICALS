@@ -202,7 +202,7 @@
                     <label style="display:block; margin-bottom:10px; font-weight:bold; color: var(--cp-blue);">
                         <i class="fas fa-camera-retro"></i> Attach Media (Photos/Videos):
                     </label>
-                    <input type="file" id="blogImage" accept="image/*,video/*" style="width:100%; cursor: pointer;">
+                    <input type="file" id="blogImage" accept="image/*" style="width:100%; cursor: pointer;">
                 </div>
                 
                <button type="button" class="btn-shop" onclick="publishPost()" style="width:100%; padding:15px; font-size:1.1rem;">Publish Live to Agri-Talk</button>
@@ -334,6 +334,16 @@
 
             if (!title || !content) {
                 alert('Please complete the title and content fields.');
+                return;
+            }
+
+            // Firestore documents are capped at 1MB total, and images here are stored as embedded
+            // base64 data, which inflates a file's size by roughly a third -- this check was missing
+            // entirely before, meaning a large photo would silently fail to publish with no clear
+            // reason why (an oversight caught while adding the same upload feature to Newsroom articles).
+            const MAX_IMAGE_BYTES = 500 * 1024;
+            if (imageFile && imageFile.size > MAX_IMAGE_BYTES) {
+                alert(`That photo is ${(imageFile.size / 1024).toFixed(0)}KB, which is over the 500KB limit. Please use a smaller or more compressed photo.`);
                 return;
             }
 

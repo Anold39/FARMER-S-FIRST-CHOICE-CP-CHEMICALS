@@ -121,8 +121,10 @@
                 // Legacy (original 3) articles link to their own existing hand-built page; every
                 // new article added via manage_news.html goes through the dynamic viewer instead.
                 const link = a.legacyUrl ? a.legacyUrl : `news_article.html?id=${a.firestoreId}`;
+                const thumbHtml = a.image ? `<img src="${a.image}" alt="${escapeHTMLNews(a.title)}" style="width:100%; height:160px; object-fit:cover; border-radius:8px 8px 0 0;">` : '';
                 return `
                 <article class="news-card">
+                    ${thumbHtml}
                     <div class="news-body">
                         <span class="badge">${escapeHTMLNews(a.badge)}</span>
                         <span class="news-date">${escapeHTMLNews(a.date)}</span>

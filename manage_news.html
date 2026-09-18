@@ -58,6 +58,11 @@
                 <input type="text" id="nTitle" placeholder="Article title" required>
                 <textarea id="nExcerpt" rows="2" placeholder="Short excerpt shown on the Newsroom card..." required></textarea>
                 <textarea id="nContent" rows="8" placeholder="Full article body (paragraphs can be separated with a blank line)..." required></textarea>
+                <label style="font-size:0.85rem; font-weight:bold; color:#555; display:block; margin-bottom:4px;">Photo (optional, under 500KB)</label>
+                <input type="file" id="nImage" accept="image/*" style="margin-bottom:12px;">
+                <label style="font-size:0.85rem; font-weight:bold; color:#555; display:block; margin-bottom:4px;">YouTube video link (optional)</label>
+                <input type="text" id="nVideoUrl" placeholder="e.g. https://www.youtube.com/watch?v=..." style="margin-bottom:0;">
+                <p style="font-size:0.78rem; color:#888; margin-top:4px;">Paste the normal YouTube link you'd share or copy from the address bar -- it's converted to an embeddable video automatically. A direct video file upload isn't available here (it would need a separate file-storage service, not just the database this site already uses).</p>
                 <button type="submit" class="btn-brick"><i class="fas fa-paper-plane"></i> Publish Article</button>
             </form>
         </div>
@@ -82,12 +87,42 @@
             const title = document.getElementById('nTitle').value.trim();
             const excerpt = document.getElementById('nExcerpt').value.trim();
             const content = document.getElementById('nContent').value.trim();
+            const imageFile = document.getElementById('nImage').files[0];
+            const videoUrlInput = document.getElementById('nVideoUrl').value.trim();
             if (!badge || !title || !excerpt || !content) { alert('Please fill in the badge, title, excerpt and content.'); return; }
 
-            await addNewsArticle(badge, title, excerpt, content, date);
-            document.getElementById('addNewsForm').reset();
-            await renderNewsList();
-            alert('Article published -- it now appears at the top of the public Newsroom page with its own full-story page.');
+            // Firestore documents are capped at 1MB total; images here are stored as embedded
+            // base64 data (not a separate file), and base64 inflates size by roughly a third, so a
+            // 500KB raw file limit leaves comfortable headroom for the rest of the article's text.
+            const MAX_IMAGE_BYTES = 500 * 1024;
+            if (imageFile && imageFile.size > MAX_IMAGE_BYTES) {
+                alert(`That photo is ${(imageFile.size / 1024).toFixed(0)}KB, which is over the 500KB limit. Please use a smaller or more compressed photo.`);
+                return;
+            }
+
+            let videoUrl = null;
+            if (videoUrlInput) {
+                videoUrl = getYouTubeEmbedUrl(videoUrlInput);
+                if (!videoUrl) {
+                    alert('That doesn\'t look like a recognisable YouTube link. Please paste the normal link you\'d copy from YouTube\'s address bar or Share button.');
+                    return;
+                }
+            }
+
+            const publish = async (imageData) => {
+                await addNewsArticle(badge, title, excerpt, content, date, imageData, videoUrl);
+                document.getElementById('addNewsForm').reset();
+                await renderNewsList();
+                alert('Article published -- it now appears at the top of the public Newsroom page with its own full-story page.');
+            };
+
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onload = e => publish(e.target.result);
+                reader.readAsDataURL(imageFile);
+            } else {
+                await publish(null);
+            }
         }
 
         async function renderNewsList() {

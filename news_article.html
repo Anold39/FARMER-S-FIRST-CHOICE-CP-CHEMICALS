@@ -81,12 +81,25 @@
             }
 
             document.title = article.title + ' | CP Chemicals';
+
+            const imageHtml = article.image
+                ? `<img src="${article.image}" alt="${escapeHTMLArticle(article.title)}" style="width:100%; max-height:400px; object-fit:cover; border-radius:8px; margin-bottom:20px;">`
+                : '';
+
+            const videoHtml = article.videoUrl
+                ? `<div style="position:relative; padding-bottom:56.25%; height:0; margin-bottom:20px; border-radius:8px; overflow:hidden;">
+                       <iframe src="${article.videoUrl}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allowfullscreen loading="lazy"></iframe>
+                   </div>`
+                : '';
+
             container.innerHTML = `
                 <div class="story-header">
                     <span class="badge">${escapeHTMLArticle(article.badge)}</span>
                     <span class="date">${escapeHTMLArticle(article.date)}</span>
                     <h1>${escapeHTMLArticle(article.title)}</h1>
                 </div>
+                ${imageHtml}
+                ${videoHtml}
                 <div class="content">${escapeHTMLArticle(article.content)}</div>
             `;
         }

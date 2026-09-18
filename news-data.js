@@ -66,11 +66,30 @@ async function getNewsArticleById(firestoreId) {
 }
 
 /** Adds a new article. New articles always get a dynamic viewer page (no legacyUrl). */
-async function addNewsArticle(badge, title, excerpt, content, date) {
+/**
+ * Extracts a YouTube video ID from any common share/watch URL format and returns a proper
+ * embeddable URL. Staff paste the normal link they'd copy from YouTube (watch?v=... or youtu.be/...);
+ * a raw watch-page URL cannot be used directly in an <iframe>, only the /embed/ form can. Returns
+ * null for anything that isn't a recognised YouTube URL, so the caller can fall back to a plain link.
+ */
+function getYouTubeEmbedUrl(url) {
+    if (!url) return null;
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+    ];
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return `https://www.youtube.com/embed/${match[1]}`;
+    }
+    return null;
+}
+
+async function addNewsArticle(badge, title, excerpt, content, date, image = null, videoUrl = null) {
     const { db, collection, addDoc } = window.CPFirebase;
     const existing = await getNewsArticles();
     const nextOrder = existing.length > 0 ? Math.min(...existing.map(a => a.order || 0)) - 1 : 1; // new articles appear first
-    const article = { badge, title, excerpt, content, date: date || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), legacyUrl: null, order: nextOrder };
+    const article = { badge, title, excerpt, content, image, videoUrl,
+        date: date || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), legacyUrl: null, order: nextOrder };
     await addDoc(collection(db, 'news_articles'), article);
     return article;
 }
