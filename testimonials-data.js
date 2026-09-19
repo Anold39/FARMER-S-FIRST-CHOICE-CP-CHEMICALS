@@ -40,11 +40,18 @@ async function getTestimonials() {
 }
 
 /** Adds a new testimonial, appearing after the existing ones. */
-async function addTestimonial(quote, name, location, rating) {
+/** farmerId links this testimonial to a real record in the Farmer Database, when picked from
+ * there rather than typed freely -- null for a manually-entered testimonial (e.g. from someone
+ * quoted at an event who isn't a registered farmer). This is a genuine reference, not just a
+ * one-time copy: if staff later correct that farmer's name in the Farmer Database, this
+ * testimonial's own name/location fields still show whatever was true at the time it was added,
+ * same as the rest of this project's pattern of keeping a record's own snapshot rather than
+ * silently changing historical entries when the source data changes. */
+async function addTestimonial(quote, name, location, rating, farmerId = null) {
     const { db, collection, addDoc } = window.CPFirebase;
     const existing = await getTestimonials();
     const nextOrder = existing.length > 0 ? Math.max(...existing.map(t => t.order || 0)) + 1 : 1;
-    const testimonial = { quote, name, location, rating: parseInt(rating) || 5, order: nextOrder };
+    const testimonial = { quote, name, location, rating: parseInt(rating) || 5, order: nextOrder, farmerId };
     await addDoc(collection(db, 'testimonials'), testimonial);
     return testimonial;
 }

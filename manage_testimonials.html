@@ -48,6 +48,12 @@
         <div class="form-card">
             <h3><i class="fas fa-plus-circle"></i> Add a New Testimonial</h3>
             <form id="addTestimonialForm" onsubmit="handleAddTestimonial(event)">
+                <label style="font-size:0.85rem; font-weight:bold; color:#555; display:block; margin-bottom:4px;">Link to a real farmer (optional)</label>
+                <div style="position:relative; margin-bottom:12px;">
+                    <input type="text" id="farmerSearch" placeholder="Search by name or phone number..." autocomplete="off" oninput="handleFarmerSearch()">
+                    <div id="farmerSearchResults" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:6px; max-height:200px; overflow-y:auto; z-index:10; box-shadow:0 4px 10px rgba(0,0,0,0.1);"></div>
+                </div>
+                <p id="linkedFarmerNote" style="display:none; font-size:0.8rem; color:#2e7d32; margin:-8px 0 12px; padding:6px 10px; background:#e8f5e9; border-radius:6px;"></p>
                 <textarea id="tQuote" rows="3" placeholder="The farmer's quote..." required></textarea>
                 <div class="form-row">
                     <input type="text" id="tName" placeholder="Farmer name (e.g. 'Tafadzwa C.')" required>
@@ -58,6 +64,7 @@
                         <option value="3">3 Stars</option>
                     </select>
                 </div>
+                <p style="font-size:0.78rem; color:#888; margin-top:-6px;">Searching and picking a farmer above fills these in automatically -- you can still edit them, or skip the search and type them directly for a quote from someone not in the Farmer Database.</p>
                 <button type="submit" class="btn-amber"><i class="fas fa-plus"></i> Add Testimonial</button>
             </form>
         </div>
@@ -68,11 +75,56 @@
     <script type="module" src="firebase-init.js"></script>
     <script src="staff-auth-data.js"></script>
     <script src="testimonials-data.js"></script>
+    <script src="farmers-data.js"></script>
     <script>
         function escapeHTMLT(str) {
             return String(str == null ? '' : str).replace(/[&<>'"]/g,
                 tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
             );
+        }
+
+        let linkedFarmerId = null;
+        let farmerListCache = null;
+
+        async function handleFarmerSearch() {
+            const term = document.getElementById('farmerSearch').value.trim().toLowerCase();
+            const resultsBox = document.getElementById('farmerSearchResults');
+            linkedFarmerId = null; // typing again clears any previous selection
+            document.getElementById('linkedFarmerNote').style.display = 'none';
+
+            if (!term) { resultsBox.style.display = 'none'; return; }
+
+            if (!farmerListCache) farmerListCache = await getFarmers();
+            const matches = farmerListCache.filter(f =>
+                (f.name || '').toLowerCase().includes(term) || (f.phone || '').includes(term)
+            ).slice(0, 8);
+
+            if (matches.length === 0) {
+                resultsBox.innerHTML = '<div style="padding:10px; color:#888; font-size:0.85rem;">No matching farmers.</div>';
+                resultsBox.style.display = 'block';
+                return;
+            }
+
+            resultsBox.innerHTML = matches.map(f => `
+                <div style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f0f0f0;"
+                     onmouseover="this.style.background='#fff8e1'" onmouseout="this.style.background='white'"
+                     onclick="selectFarmerForTestimonial('${f.firestoreId}')">
+                    <strong>${escapeHTMLT(f.name)}</strong> <span style="color:#888; font-size:0.8rem;">${escapeHTMLT(f.phone)} &middot; ${escapeHTMLT(f.district)}</span>
+                </div>`).join('');
+            resultsBox.style.display = 'block';
+        }
+
+        function selectFarmerForTestimonial(firestoreId) {
+            const farmer = farmerListCache.find(f => f.firestoreId === firestoreId);
+            if (!farmer) return;
+            linkedFarmerId = firestoreId;
+            document.getElementById('tName').value = farmer.name;
+            document.getElementById('tLocation').value = farmer.district;
+            document.getElementById('farmerSearch').value = farmer.name;
+            document.getElementById('farmerSearchResults').style.display = 'none';
+            const note = document.getElementById('linkedFarmerNote');
+            note.textContent = `Linked to ${farmer.name}'s record in the Farmer Database.`;
+            note.style.display = 'block';
         }
 
         async function handleAddTestimonial(event) {
@@ -83,8 +135,11 @@
             const rating = document.getElementById('tRating').value;
             if (!quote || !name || !location) { alert('Please fill in the quote, name and location.'); return; }
 
-            await addTestimonial(quote, name, location, rating);
+            await addTestimonial(quote, name, location, rating, linkedFarmerId);
             document.getElementById('addTestimonialForm').reset();
+            document.getElementById('farmerSearchResults').style.display = 'none';
+            document.getElementById('linkedFarmerNote').style.display = 'none';
+            linkedFarmerId = null;
             await renderTestimonialsList();
             alert('Testimonial added -- it will now appear on the Farmer Registration page.');
         }
@@ -100,11 +155,12 @@
 
             listEl.innerHTML = testimonials.map(t => {
                 const starIcons = '<i class="fas fa-star"></i>'.repeat(Math.max(1, Math.min(5, parseInt(t.rating) || 5)));
+                const linkBadge = t.farmerId ? '<span style="font-size:0.7rem; font-weight:bold; color:#1b5e20; background:#e8f5e9; padding:2px 8px; border-radius:10px; margin-left:8px;"><i class="fas fa-link"></i> Farmer Database</span>' : '';
                 return `
                 <div class="testimonial-item">
                     <div class="stars">${starIcons}</div>
                     <p>"${escapeHTMLT(t.quote)}"</p>
-                    <h4>&mdash; ${escapeHTMLT(t.name)}, ${escapeHTMLT(t.location)}</h4>
+                    <h4>&mdash; ${escapeHTMLT(t.name)}, ${escapeHTMLT(t.location)}${linkBadge}</h4>
                     <div class="actions">
                         <button class="btn-edit-t" onclick="toggleEditT('${t.firestoreId}')"><i class="fas fa-edit"></i> Edit</button>
                         <button class="btn-delete-t" onclick="handleDeleteTestimonial('${t.firestoreId}')"><i class="fas fa-trash"></i> Remove</button>
