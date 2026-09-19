@@ -169,6 +169,7 @@
 
     <script type="module" src="firebase-init.js"></script>
     <script src="testimonials-data.js"></script>
+    <script src="farmers-data.js"></script>
     <script>
         function escapeHTMLTestimonial(str) {
             return String(str == null ? '' : str).replace(/[&<>'"]/g,
@@ -289,8 +290,9 @@
             }
 
             submitBtn.disabled = true; submitBtn.textContent = 'Creating account...';
+            let registeredUser;
             try {
-                await window.CPFirebase.registerFarmer(phoneVal, pinVal, nameVal);
+                registeredUser = await window.CPFirebase.registerFarmer(phoneVal, pinVal, nameVal);
             } catch (err) {
                 alert(describeAuthError(err));
                 submitBtn.disabled = false; submitBtn.textContent = 'Create Farmer Account';
@@ -303,28 +305,24 @@
                 selectedCrops.push(checkbox.value);
             });
 
-            // Collect Data (name/phone already validated above, before the Firebase Auth account was created)
-            const newFarmer = {
-                name: nameVal,
-                phone: phoneVal,
-                district: document.getElementById('farmerDistrict').value,
-                crops: selectedCrops.length > 0 ? selectedCrops.join(", ") : "None Selected",
-                hectares: parseFloat(document.getElementById('farmSize').value) || 0,
-                rating: selectedRating,
-                date: new Date().toLocaleDateString()
-            };
-
-            // Get existing data from localStorage
-            let database = JSON.parse(localStorage.getItem('cp_farmers')) || [];
-            
-            // Add new farmer to the start of the list
-            database.unshift(newFarmer);
-            
-            // Save back to localStorage
-            localStorage.setItem('cp_farmers', JSON.stringify(database));
+            // Save the farmer's profile (name/district/crops/hectares/rating) to the shared
+            // Firestore 'farmers' collection -- this is what farmer_database.html reads, so staff
+            // on any device can now see this registration, not just whichever browser it happened on.
+            try {
+                await addFarmerProfile(
+                    nameVal, phoneVal, document.getElementById('farmerDistrict').value,
+                    selectedCrops.length > 0 ? selectedCrops.join(", ") : "None Selected",
+                    parseFloat(document.getElementById('farmSize').value) || 0,
+                    selectedRating, registeredUser.uid
+                );
+            } catch (err) {
+                console.error('[farmer_login] Could not save profile to Farmer Database:', err);
+                // The login account itself was already created successfully above, so the farmer
+                // can still use the site even if this secondary profile save fails -- not blocking.
+            }
 
             // Success feedback
-            alert("Success! Account created for " + newFarmer.name + ". Welcome to the network!");
+            alert("Success! Account created for " + nameVal + ". Welcome to the network!");
             window.location.href = 'home.html';
         });
     </script>

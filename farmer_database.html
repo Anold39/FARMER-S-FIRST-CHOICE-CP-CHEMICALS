@@ -3,6 +3,7 @@
 <head>
     <script type="module" src="firebase-init.js"></script>
     <script src="staff-auth-data.js"></script>
+    <script src="farmers-data.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CP Chemicals | Staff - Farmer Database</title>
@@ -186,14 +187,14 @@
 
         document.addEventListener('DOMContentLoaded', renderDatabase);
 
-        function renderDatabase() {
+        async function renderDatabase() {
             const tableBody = document.getElementById('farmer-table-body');
             const totalEl = document.getElementById('stat-total');
             const hectareEl = document.getElementById('stat-hectares');
             const ratingEl = document.getElementById('stat-rating');
             const districtEl = document.getElementById('stat-district');
 
-            const farmers = JSON.parse(localStorage.getItem('cp_farmers')) || [];
+            const farmers = await getFarmers();
             tableBody.innerHTML = '';
 
             if (farmers.length === 0) {
@@ -210,7 +211,7 @@
             let totalHectares = 0;
             let districts = {};
 
-            farmers.forEach((farmer, index) => {
+            farmers.forEach((farmer) => {
                 totalRating += parseInt(farmer.rating || 0);
                 const ha = parseFloat(farmer.hectares || 0);
                 totalHectares += ha;
@@ -226,8 +227,8 @@
                         <td><span class="crop-tag">${escapeHTMLDB(farmer.crops || 'General')}</span></td>
                         <td><span class="rating-badge"><i class="fas fa-star"></i> ${escapeHTMLDB(farmer.rating)}</span></td>
                         <td>
-                            <button title="Edit Farmer" class="action-btn btn-edit" onclick="editFarmer(${index})"><i class="fas fa-edit"></i></button>
-                            <button title="Remove Farmer" class="action-btn btn-delete" onclick="deleteFarmer(${index})"><i class="fas fa-trash"></i></button>
+                            <button title="Edit Farmer" class="action-btn btn-edit" onclick="editFarmer('${farmer.firestoreId}')"><i class="fas fa-edit"></i></button>
+                            <button title="Remove Farmer" class="action-btn btn-delete" onclick="deleteFarmer('${farmer.firestoreId}')"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
@@ -245,18 +246,19 @@
             }
         }
 
-        function deleteFarmer(index) {
-            let farmers = JSON.parse(localStorage.getItem('cp_farmers'));
-            if (confirm(`Remove ${farmers[index].name} from the system?`)) {
-                farmers.splice(index, 1);
-                localStorage.setItem('cp_farmers', JSON.stringify(farmers));
-                renderDatabase();
+        async function deleteFarmer(firestoreId) {
+            const farmers = await getFarmers();
+            const f = farmers.find(x => x.firestoreId === firestoreId);
+            if (f && confirm(`Remove ${f.name} from the system?`)) {
+                await deleteFarmerProfile(firestoreId);
+                await renderDatabase();
             }
         }
 
-        function editFarmer(index) {
-            let farmers = JSON.parse(localStorage.getItem('cp_farmers'));
-            let f = farmers[index];
+        async function editFarmer(firestoreId) {
+            const farmers = await getFarmers();
+            const f = farmers.find(x => x.firestoreId === firestoreId);
+            if (!f) return;
 
             const newName = prompt("Edit Name:", f.name);
             const newPhone = prompt("Edit Phone:", f.phone);
@@ -265,44 +267,13 @@
             const newCrops = prompt("Edit Crops (comma separated):", f.crops || "");
 
             if (newName !== null && newPhone !== null && newDistrict !== null && newHectares !== null) {
-                farmers[index].name = newName;
-                farmers[index].phone = newPhone;
-                farmers[index].district = newDistrict;
-                farmers[index].hectares = newHectares;
-                farmers[index].crops = newCrops;
-                
-                localStorage.setItem('cp_farmers', JSON.stringify(farmers));
-                renderDatabase();
+                await updateFarmerProfile(firestoreId, {
+                    name: newName, phone: newPhone, district: newDistrict,
+                    hectares: parseFloat(newHectares) || 0, crops: newCrops
+                });
+                await renderDatabase();
                 alert("Database entry updated.");
             }
-        }
-
-        function parseCSVLineDB(line) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-                if (inQuotes) {
-                    if (char === '"') {
-                        if (line[i + 1] === '"') { current += '"'; i++; }
-                        else { inQuotes = false; }
-                    } else {
-                        current += char;
-                    }
-                } else {
-                    if (char === '"') {
-                        inQuotes = true;
-                    } else if (char === ',') {
-                        result.push(current.trim());
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-            }
-            result.push(current.trim());
-            return result;
         }
 
         function escapeCSVFieldDB(val) {
@@ -313,8 +284,8 @@
             return s;
         }
 
-        function exportFarmersCSV() {
-            const farmers = JSON.parse(localStorage.getItem('cp_farmers')) || [];
+        async function exportFarmersCSV() {
+            const farmers = await getFarmers();
             if (farmers.length === 0) { alert('No farmers to export yet.'); return; }
 
             const headers = ['name', 'phone', 'district', 'crops', 'rating', 'hectares', 'date'];
@@ -333,64 +304,6 @@
             URL.revokeObjectURL(url);
         }
 
-        /**
-         * Parses an uploaded CSV (name,phone,district,crops,rating,hectares) and merges it into
-         * cp_farmers. Existing farmers are matched by phone number (the natural unique identifier
-         * here, since names are not reliably unique) and updated in place, preserving their original
-         * registration date. Rows with a new phone number are added as new farmers with today's date.
-         */
-        function importFarmersFromCSV(csvText) {
-            const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-            if (lines.length < 2) return { updated: 0, added: 0, errors: ["CSV appears to be empty or missing a header row."] };
-
-            const header = parseCSVLineDB(lines[0]).map(h => h.toLowerCase());
-            const nameIdx = header.indexOf('name');
-            const phoneIdx = header.indexOf('phone');
-            const districtIdx = header.indexOf('district');
-            const cropsIdx = header.indexOf('crops');
-            const ratingIdx = header.indexOf('rating');
-            const hectaresIdx = header.indexOf('hectares');
-
-            if (nameIdx === -1 || phoneIdx === -1) {
-                return { updated: 0, added: 0, errors: ["CSV header must include at least: name, phone."] };
-            }
-
-            const farmers = JSON.parse(localStorage.getItem('cp_farmers')) || [];
-            let updated = 0, added = 0;
-            const errors = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const cols = parseCSVLineDB(lines[i]);
-                const name = cols[nameIdx];
-                const phone = cols[phoneIdx];
-                if (!name || !phone) { errors.push(`Row ${i + 1}: missing name or phone, skipped.`); continue; }
-
-                const existingIdx = farmers.findIndex(f => f.phone === phone);
-                if (existingIdx > -1) {
-                    farmers[existingIdx].name = name;
-                    if (districtIdx > -1 && cols[districtIdx]) farmers[existingIdx].district = cols[districtIdx];
-                    if (cropsIdx > -1 && cols[cropsIdx]) farmers[existingIdx].crops = cols[cropsIdx];
-                    if (ratingIdx > -1 && cols[ratingIdx]) farmers[existingIdx].rating = cols[ratingIdx];
-                    if (hectaresIdx > -1 && cols[hectaresIdx]) farmers[existingIdx].hectares = parseFloat(cols[hectaresIdx]) || 0;
-                    updated++;
-                } else {
-                    farmers.unshift({
-                        name: name,
-                        phone: phone,
-                        district: districtIdx > -1 && cols[districtIdx] ? cols[districtIdx] : 'Other',
-                        crops: cropsIdx > -1 && cols[cropsIdx] ? cols[cropsIdx] : 'None Selected',
-                        rating: ratingIdx > -1 && cols[ratingIdx] ? cols[ratingIdx] : '5',
-                        hectares: hectaresIdx > -1 && cols[hectaresIdx] ? (parseFloat(cols[hectaresIdx]) || 0) : 0,
-                        date: new Date().toLocaleDateString()
-                    });
-                    added++;
-                }
-            }
-
-            localStorage.setItem('cp_farmers', JSON.stringify(farmers));
-            return { updated, added, errors };
-        }
-
         function handleFarmerCSVUpload() {
             const fileInput = document.getElementById('farmerCsvInput');
             const resultBox = document.getElementById('farmerUploadResult');
@@ -401,8 +314,8 @@
             }
 
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const result = importFarmersFromCSV(e.target.result);
+            reader.onload = async (e) => {
+                const result = await importFarmersFromCSV(e.target.result);
                 if (result.errors.length > 0 && result.updated === 0 && result.added === 0) {
                     resultBox.className = 'upload-result error';
                     resultBox.innerHTML = '<strong>Upload failed:</strong><br>' + result.errors.map(escapeHTMLDB).join('<br>');
@@ -410,7 +323,7 @@
                     resultBox.className = 'upload-result success';
                     resultBox.innerHTML = `<strong>Upload complete:</strong> ${result.updated} farmer(s) updated, ${result.added} farmer(s) added.` +
                         (result.errors.length > 0 ? '<br><em>Some rows were skipped:</em><br>' + result.errors.map(escapeHTMLDB).join('<br>') : '');
-                    renderDatabase();
+                    await renderDatabase();
                 }
             };
             reader.readAsText(fileInput.files[0]);
