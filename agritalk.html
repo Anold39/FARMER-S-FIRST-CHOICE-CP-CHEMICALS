@@ -122,6 +122,10 @@
                 <!-- Dynamic Live Feedback & Agronomist Responses Section -->
                 <div id="farmerCasesContainer" style="margin-top: 30px; border-top: 2px dashed #ddd; padding-top: 20px;">
                     <h4 style="color: #1a237e; margin-bottom: 15px;"><i class="fas fa-comments"></i> Your Submitted Cases & Responses</h4>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <input type="text" id="lookupFarmerName" placeholder="Enter your name to check your cases (works any time, any device)" style="flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px;">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="checkMyCases()">Check My Cases</button>
+                    </div>
                     <div id="casesList" style="display: flex; flex-direction: column; gap: 15px;">
                         <p style="font-size: 0.9rem; color: #777;">No previous cases submitted in this session.</p>
                     </div>
@@ -239,19 +243,18 @@
         }
 
         // Load submitted cases and agronomist replies for the farmer
-        function loadFarmerCases() {
+        function renderCasesForName(name) {
             const casesList = document.getElementById('casesList');
-            const knownName = sessionStorage.getItem('agritalk_farmerName');
 
-            if (!knownName) {
+            if (!name) {
                 casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">No previous cases submitted in this session.</p>';
                 return;
             }
 
             casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">Loading your cases...</p>';
-            getAgriTalkCasesByFarmerName(knownName).then(existingQueries => {
+            getAgriTalkCasesByFarmerName(name).then(existingQueries => {
                 if (existingQueries.length === 0) {
-                casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">No previous cases submitted in this session.</p>';
+                casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">No cases found for that name. Check the spelling matches exactly what you used when submitting.</p>';
                 return;
             }
 
@@ -273,6 +276,23 @@
                 </div>
             `).join('');
             });
+        }
+
+        function loadFarmerCases() {
+            renderCasesForName(sessionStorage.getItem('agritalk_farmerName'));
+        }
+
+        /** Lets a farmer retrieve their case history any time, from any device -- not just within
+         *  the browser tab that originally submitted it -- matching the "Check My Escalation
+         *  Status" pattern already used on the AI Advisory Portal. */
+        function checkMyCases() {
+            const name = document.getElementById('lookupFarmerName').value.trim();
+            if (!name) {
+                alert('Please enter the name you used when submitting your case(s).');
+                return;
+            }
+            sessionStorage.setItem('agritalk_farmerName', name);
+            renderCasesForName(name);
         }
 
         // Initialize state on page load
