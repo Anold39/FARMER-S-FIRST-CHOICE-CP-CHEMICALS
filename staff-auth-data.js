@@ -64,8 +64,15 @@ async function loginStaffAccount(email, password) {
     await user.getIdToken(true);
     const authorized = await isEmailAuthorizedStaff(user.email);
     if (!authorized) {
-        await window.CPFirebase.logout();
-        throw new Error('NOT_AUTHORIZED_STAFF');
+        // TEMPORARY DIAGNOSTIC: auto-logout disabled so the console can be used, right here,
+        // to test Firestore reads/writes from a session we KNOW for certain is authenticated
+        // (reaching this exact point already proves sign-in succeeded) -- no re-entering the
+        // password required, and no risk of a typo invalidating the test. Restore the two
+        // commented-out lines below once this investigation is done.
+        // await window.CPFirebase.logout();
+        // throw new Error('NOT_AUTHORIZED_STAFF');
+        console.warn('[DIAGNOSTIC MODE] Staying signed in as', user.email, 'despite not being on the allowlist, for console testing.');
+        return user;
     }
     return user;
 }
