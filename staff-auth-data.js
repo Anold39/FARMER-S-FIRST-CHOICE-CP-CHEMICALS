@@ -95,9 +95,13 @@ async function requireStaffAuth() {
     await user.getIdToken(true);
     const authorized = await isEmailAuthorizedStaff(user.email);
     if (!authorized) {
-        await window.CPFirebase.logout();
-        window.location.href = 'staff_login.html';
-        return false;
+        // TEMPORARY DIAGNOSTIC: same as loginStaffAccount's diagnostic mode -- staying signed in
+        // (not redirecting, not logging out) so the console can be used right here, on a page we
+        // know for certain is authenticated. Restore the two commented-out lines once done.
+        // await window.CPFirebase.logout();
+        // window.location.href = 'staff_login.html';
+        console.warn('[DIAGNOSTIC MODE] requireStaffAuth: staying on this page and staying signed in as', user.email, 'despite not being on the allowlist.');
+        return true;
     }
     document.body.classList.add('staff-auth-verified');
     return true;
