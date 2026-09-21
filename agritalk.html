@@ -86,7 +86,7 @@
         <div class="customer-ask section-margin">
             <section class="card">
                 <h3><i class="fas fa-user-md"></i> Ask an Agronomist</h3>
-                <p>Upload photos or videos of your crop/livestock issues for expert diagnosis.</p>
+                <p>Upload photos of your crop/livestock issues for expert diagnosis.</p>
                 <br>
                 <form id="agronomyForm" enctype="multipart/form-data">
                     <div class="form-group">
@@ -109,9 +109,9 @@
                                   rows="5" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:5px;" required></textarea>
                         
                         <label style="display:block; margin-bottom:10px; font-weight:bold;">
-                            <i class="fas fa-paperclip"></i> Attach Photos/Video (Max 10MB):
+                            <i class="fas fa-paperclip"></i> Attach Photo (Max 500KB):
                         </label>
-                        <input type="file" id="mediaUpload" accept="image/*,video/*" style="margin-bottom:20px; display:block;">
+                        <input type="file" id="mediaUpload" accept="image/*" style="margin-bottom:20px; display:block;">
                         
                         <button type="button" class="btn-shop" onclick="submitQuery()" style="width:100%; padding:15px; font-size:1.1rem;">
                             Submit Case to Agronomy Dept
@@ -222,11 +222,13 @@
             };
 
             // This browser's whole localStorage is no longer where this feature's data lives, but
-            // Firestore document writes still have a practical size ceiling -- capping the photo/video
-            // here keeps one large attachment from failing the whole submission silently.
+            // Firestore document writes still have a practical size ceiling -- capping the photo
+            // here keeps one large attachment from failing the whole submission silently. Video was
+            // dropped entirely (not just capped) since a real video clip would almost never fit
+            // under this limit, making it a dead option rather than a usable one.
             const MAX_MEDIA_BYTES = 500 * 1024;
             if (mediaUpload && mediaUpload.size > MAX_MEDIA_BYTES) {
-                alert(`That file is ${(mediaUpload.size / 1024).toFixed(0)}KB, which is over the 500KB limit. Please attach a smaller photo, or a shorter/lower-resolution video clip.`);
+                alert(`That photo is ${(mediaUpload.size / 1024).toFixed(0)}KB, which is over the 500KB limit. Please attach a smaller or more compressed photo.`);
                 return;
             }
 

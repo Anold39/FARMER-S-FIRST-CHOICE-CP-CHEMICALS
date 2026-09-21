@@ -1,7 +1,7 @@
 /* ==========================================================================
    agritalk-cases-data.js (TIER 2 -- Firestore-backed)
    "Ask an Agronomist" case submissions from the Agri-Talk Hub (agritalk.html),
-   including an optional attached photo/video, and staff replies to them
+   including an optional attached photo, and staff replies to them
    (staff_portal.html).
 
    Migrated from localStorage (key 'agronomyQueries') to the Firestore
