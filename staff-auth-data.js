@@ -14,21 +14,21 @@
    member always creates their own account, and an EXISTING authorized
    staff member separately approves that email via manage_staff.html.
 
-   The very first staff account has no existing staff to approve it, so
-   that one is seeded once, directly in the Firebase Console, as a manual
-   bootstrap step -- see manage_staff.html and the setup instructions given
-   alongside this module.
-
    IMPORTANT: staff_users documents are keyed BY EMAIL ITSELF (not an
    auto-generated ID), and every email is lowercased/trimmed before being
-   used as that key -- everywhere, consistently. This isn't just a style
-   choice: the Firestore Security Rules locking this collection down check
-   "does a document already exist at staff_users/<the caller's own email>",
-   and that check can only work if the document's ID is genuinely the
-   email, in the exact same normalized form the rule expects. Getting this
-   inconsistent between the app and the rules would either lock everyone
-   out or defeat the lock entirely -- so normalizeEmail() below is the one
-   place this happens, used by every function that touches this collection.
+   used as that key -- everywhere, consistently. The Firestore Security
+   Rules locking this collection down check "does a document already exist
+   at staff_users/<the caller's own email>", which only works if the
+   document's ID is genuinely the email in that exact normalized form.
+
+   Root-cause note (2026-09-21): a prolonged "document not found" issue was
+   eventually traced to a document ID typed BY HAND into the Firestore
+   Console UI -- it displayed identically to the correct email in every
+   screenshot, but was evidently not byte-for-byte identical, since a
+   document created via addStaffMember() (i.e. by code, not manual typing)
+   resolved correctly on the very first attempt. Moral: always create/edit
+   staff_users documents through manage_staff.html rather than typing an
+   ID directly into the Firestore Console.
    ========================================================================== */
 
 function normalizeEmail(email) {
@@ -43,10 +43,7 @@ async function createStaffAccount(email, password, name) {
 /** Returns true if the given email is on the authorized staff allowlist. */
 async function isEmailAuthorizedStaff(email) {
     const { db, doc, getDoc } = window.CPFirebase;
-    const targetPath = 'staff_users/' + normalizeEmail(email);
-    console.log('[DEBUG isEmailAuthorizedStaff] Looking up document at path:', targetPath);
     const snap = await getDoc(doc(db, 'staff_users', normalizeEmail(email)));
-    console.log('[DEBUG isEmailAuthorizedStaff] snap.exists():', snap.exists(), '| snap.id:', snap.id, '| snap.data():', snap.exists() ? snap.data() : '(no data, doc not found)');
     return snap.exists();
 }
 
@@ -64,15 +61,8 @@ async function loginStaffAccount(email, password) {
     await user.getIdToken(true);
     const authorized = await isEmailAuthorizedStaff(user.email);
     if (!authorized) {
-        // TEMPORARY DIAGNOSTIC: auto-logout disabled so the console can be used, right here,
-        // to test Firestore reads/writes from a session we KNOW for certain is authenticated
-        // (reaching this exact point already proves sign-in succeeded) -- no re-entering the
-        // password required, and no risk of a typo invalidating the test. Restore the two
-        // commented-out lines below once this investigation is done.
-        // await window.CPFirebase.logout();
-        // throw new Error('NOT_AUTHORIZED_STAFF');
-        console.warn('[DIAGNOSTIC MODE] Staying signed in as', user.email, 'despite not being on the allowlist, for console testing.');
-        return user;
+        await window.CPFirebase.logout();
+        throw new Error('NOT_AUTHORIZED_STAFF');
     }
     return user;
 }
@@ -95,13 +85,9 @@ async function requireStaffAuth() {
     await user.getIdToken(true);
     const authorized = await isEmailAuthorizedStaff(user.email);
     if (!authorized) {
-        // TEMPORARY DIAGNOSTIC: same as loginStaffAccount's diagnostic mode -- staying signed in
-        // (not redirecting, not logging out) so the console can be used right here, on a page we
-        // know for certain is authenticated. Restore the two commented-out lines once done.
-        // await window.CPFirebase.logout();
-        // window.location.href = 'staff_login.html';
-        console.warn('[DIAGNOSTIC MODE] requireStaffAuth: staying on this page and staying signed in as', user.email, 'despite not being on the allowlist.');
-        return true;
+        await window.CPFirebase.logout();
+        window.location.href = 'staff_login.html';
+        return false;
     }
     document.body.classList.add('staff-auth-verified');
     return true;
