@@ -202,27 +202,29 @@
                 return;
             }
 
-            const processSubmission = (imageData = null) => {
-                const newQuery = {
-                    id: 'CASE-' + Date.now(),
-                    farmerName: farmerName,
-                    branch: branchSelect,
-                    message: queryMessage,
-                    image: imageData,
-                    timestamp: new Date().toLocaleString(),
-                    status: 'Pending Review',
-                    replies: []
-                };
+            const processSubmission = async (imageData = null) => {
+                try {
+                    await submitAgriTalkCase(farmerName, branchSelect, queryMessage, imageData);
+                } catch (err) {
+                    alert('Could not submit your case -- please check your connection and try again.');
+                    console.error('[agritalk] submitAgriTalkCase failed:', err);
+                    return;
+                }
 
-                // Retrieve existing queries, append, and save back to shared storage
-                const existingQueries = JSON.parse(localStorage.getItem('agronomyQueries')) || [];
-                existingQueries.unshift(newQuery);
-                localStorage.setItem('agronomyQueries', JSON.stringify(existingQueries));
-
+                sessionStorage.setItem('agritalk_farmerName', farmerName);
                 alert('Your case has been submitted successfully to the Agronomy Department!');
                 document.getElementById('agronomyForm').reset();
                 loadFarmerCases();
             };
+
+            // This browser's whole localStorage is no longer where this feature's data lives, but
+            // Firestore document writes still have a practical size ceiling -- capping the photo/video
+            // here keeps one large attachment from failing the whole submission silently.
+            const MAX_MEDIA_BYTES = 500 * 1024;
+            if (mediaUpload && mediaUpload.size > MAX_MEDIA_BYTES) {
+                alert(`That file is ${(mediaUpload.size / 1024).toFixed(0)}KB, which is over the 500KB limit. Please attach a smaller photo, or a shorter/lower-resolution video clip.`);
+                return;
+            }
 
             // Read media file if attached
             if (mediaUpload) {
@@ -239,9 +241,16 @@
         // Load submitted cases and agronomist replies for the farmer
         function loadFarmerCases() {
             const casesList = document.getElementById('casesList');
-            const existingQueries = JSON.parse(localStorage.getItem('agronomyQueries')) || [];
+            const knownName = sessionStorage.getItem('agritalk_farmerName');
 
-            if (existingQueries.length === 0) {
+            if (!knownName) {
+                casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">No previous cases submitted in this session.</p>';
+                return;
+            }
+
+            casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">Loading your cases...</p>';
+            getAgriTalkCasesByFarmerName(knownName).then(existingQueries => {
+                if (existingQueries.length === 0) {
                 casesList.innerHTML = '<p style="font-size: 0.9rem; color: #777;">No previous cases submitted in this session.</p>';
                 return;
             }
@@ -263,6 +272,7 @@
                     ` : ''}
                 </div>
             `).join('');
+            });
         }
 
         // Initialize state on page load
@@ -273,6 +283,7 @@
     <script type="module" src="firebase-init.js"></script>
     <script src="blog-data.js"></script>
     <script src="guides-data.js"></script>
+    <script src="agritalk-cases-data.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
