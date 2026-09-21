@@ -1,5 +1,5 @@
 /* ==========================================================================
-   staff-auth-data.js (TIER 2 -- Firestore + Firebase Auth backed, NEW module)
+   staff-auth-data.js (TIER 2 -- Firestore + Firebase Auth backed)
    Real staff authentication, replacing Tier 1/early-Tier-2's sessionStorage
    flag (which any visitor could set themselves via their browser's
    developer console -- a "staff only" sign on the door, not a lock).
@@ -18,7 +18,22 @@
    that one is seeded once, directly in the Firebase Console, as a manual
    bootstrap step -- see manage_staff.html and the setup instructions given
    alongside this module.
+
+   IMPORTANT: staff_users documents are keyed BY EMAIL ITSELF (not an
+   auto-generated ID), and every email is lowercased/trimmed before being
+   used as that key -- everywhere, consistently. This isn't just a style
+   choice: the Firestore Security Rules locking this collection down check
+   "does a document already exist at staff_users/<the caller's own email>",
+   and that check can only work if the document's ID is genuinely the
+   email, in the exact same normalized form the rule expects. Getting this
+   inconsistent between the app and the rules would either lock everyone
+   out or defeat the lock entirely -- so normalizeEmail() below is the one
+   place this happens, used by every function that touches this collection.
    ========================================================================== */
+
+function normalizeEmail(email) {
+    return String(email || '').toLowerCase().trim();
+}
 
 /** Creates a new login (email + password) -- grants NO access by itself. */
 async function createStaffAccount(email, password, name) {
@@ -27,10 +42,9 @@ async function createStaffAccount(email, password, name) {
 
 /** Returns true if the given email is on the authorized staff allowlist. */
 async function isEmailAuthorizedStaff(email) {
-    const { db, collection, query, where, getDocs } = window.CPFirebase;
-    const q = query(collection(db, 'staff_users'), where('email', '==', String(email).toLowerCase().trim()));
-    const snap = await getDocs(q);
-    return !snap.empty;
+    const { db, doc, getDoc } = window.CPFirebase;
+    const snap = await getDoc(doc(db, 'staff_users', normalizeEmail(email)));
+    return snap.exists();
 }
 
 /**
@@ -84,16 +98,27 @@ async function getStaffList() {
     return list;
 }
 
-/** Approves an email as staff. Does NOT create their login -- they must have already registered one. */
+/**
+ * Approves an email as staff. Does NOT create their login -- they must have
+ * already registered one. Writes to a document keyed by the email itself
+ * (setDoc, not addDoc-with-an-auto-ID) -- this is what the Security Rules
+ * actually check against.
+ */
 async function addStaffMember(email, name) {
-    const { db, collection, addDoc } = window.CPFirebase;
-    const entry = { email: String(email).toLowerCase().trim(), name: name || '', addedAt: new Date().toISOString() };
-    await addDoc(collection(db, 'staff_users'), entry);
+    const { db, doc, setDoc } = window.CPFirebase;
+    const normalized = normalizeEmail(email);
+    const entry = { email: normalized, name: name || '', addedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'staff_users', normalized), entry);
     return entry;
 }
 
-/** Revokes an email's staff access (does not delete their login account, only their allowlist entry). */
+/**
+ * Revokes an email's staff access (does not delete their login account,
+ * only their allowlist entry). firestoreId here IS the email (see above),
+ * so this accepts either the raw email or the id from getStaffList() --
+ * they're now the same value.
+ */
 async function removeStaffMember(firestoreId) {
     const { db, doc, deleteDoc } = window.CPFirebase;
-    await deleteDoc(doc(db, 'staff_users', firestoreId));
+    await deleteDoc(doc(db, 'staff_users', normalizeEmail(firestoreId)));
 }
