@@ -43,7 +43,10 @@ async function createStaffAccount(email, password, name) {
 /** Returns true if the given email is on the authorized staff allowlist. */
 async function isEmailAuthorizedStaff(email) {
     const { db, doc, getDoc } = window.CPFirebase;
+    const targetPath = 'staff_users/' + normalizeEmail(email);
+    console.log('[DEBUG isEmailAuthorizedStaff] Looking up document at path:', targetPath);
     const snap = await getDoc(doc(db, 'staff_users', normalizeEmail(email)));
+    console.log('[DEBUG isEmailAuthorizedStaff] snap.exists():', snap.exists(), '| snap.id:', snap.id, '| snap.data():', snap.exists() ? snap.data() : '(no data, doc not found)');
     return snap.exists();
 }
 
@@ -55,6 +58,10 @@ async function isEmailAuthorizedStaff(email) {
  */
 async function loginStaffAccount(email, password) {
     const user = await window.CPFirebase.staffAuthLogin(email, password);
+    // Forces a genuinely fresh token before the very next Firestore request, ruling out a rare
+    // but documented timing gap where the token used for the first request right after sign-in
+    // can still be a beat behind, even though sign-in itself has already resolved.
+    await user.getIdToken(true);
     const authorized = await isEmailAuthorizedStaff(user.email);
     if (!authorized) {
         await window.CPFirebase.logout();
@@ -78,6 +85,7 @@ async function requireStaffAuth() {
         window.location.href = 'staff_login.html';
         return false;
     }
+    await user.getIdToken(true);
     const authorized = await isEmailAuthorizedStaff(user.email);
     if (!authorized) {
         await window.CPFirebase.logout();
