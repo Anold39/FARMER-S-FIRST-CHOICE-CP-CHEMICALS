@@ -109,6 +109,14 @@ async function updateProductStock(firestoreId, newStock) {
     await updateDoc(doc(db, 'products', firestoreId), { stock: parseInt(newStock) || 0 });
 }
 
+// Writes ONLY this one product's image field -- same one-document-at-a-time pattern as
+// updateProductStock() above, for the same reason (see the file header comment). Lets staff
+// replace a product's generic stock photo with a real photo of what's actually on the shelf.
+async function updateProductImage(firestoreId, imageDataUrl) {
+    const { db, doc, updateDoc } = window.CPFirebase;
+    await updateDoc(doc(db, 'products', firestoreId), { image: imageDataUrl });
+}
+
 function getStockStatus(stock) {
     const s = parseInt(stock) || 0;
     if (s <= 0) return { label: "Out of Stock", cssClass: "stock-out" };

@@ -37,6 +37,9 @@
         .stock-low { color: #8a6d00; background: #fff8e1; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .stock-out { color: #b71c1c; background: #ffebee; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
         .btn-save-row { background: var(--teal); color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+        .product-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; display: block; margin-bottom: 6px; }
+        .photo-upload-input { font-size: 0.72rem; width: 130px; display: block; margin-bottom: 4px; }
+        .btn-save-photo { background: #455a64; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 0.72rem; }
     </style>
 </head>
 <body>
@@ -72,6 +75,11 @@
                 keywords, so a routine price update won't accidentally break the AI's matching for that product. This
                 is how new symptoms can be taught to the AI Advisory Portal without editing any code.
             </p>
+            <p style="font-size:0.85rem; color:#555; background:#eceff1; padding:10px 14px; border-radius:6px; border-left:3px solid #455a64;">
+                <strong>Product photos:</strong> CSV upload cannot set a photo. Every product starts with a generic
+                placeholder image (several products currently share the same one); use the Photo column in the table
+                below to upload a real photo of what's actually on the shelf, one product at a time.
+            </p>
             <input type="file" id="csvFileInput" accept=".csv" style="margin-bottom:10px;">
             <br>
             <button class="btn-teal" onclick="handleCSVUpload()"><i class="fas fa-upload"></i> Upload & Merge</button>
@@ -94,6 +102,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th>Photo</th>
                         <th>Product</th>
                         <th>Category</th>
                         <th>Unit Size</th>
@@ -141,6 +150,11 @@
                 const status = getStockStatus(p.stock);
                 return `
                     <tr>
+                        <td>
+                            <img src="${escapeHTMLInv(p.image)}" alt="${escapeHTMLInv(p.name)}" class="product-thumb">
+                            <input type="file" accept="image/*" class="photo-upload-input" id="photo-${p.firestoreId}">
+                            <button class="btn-save-photo" onclick="savePhotoRow('${p.firestoreId}')">Upload Photo</button>
+                        </td>
                         <td><strong>${escapeHTMLInv(p.name)}</strong></td>
                         <td>${escapeHTMLInv(p.category)}</td>
                         <td>${escapeHTMLInv(p.unitSize)}</td>
@@ -163,6 +177,33 @@
 
             await updateProductStock(firestoreId, newStock);
             await renderInventoryTable();
+        }
+
+        // Same 500KB ceiling used elsewhere in Tier 2 (News articles, Agri-Talk cases) -- generous
+        // enough for a genuine product photo, small enough that a handful of uploads doesn't consume
+        // an outsized share of this project's Firestore usage.
+        const MAX_PRODUCT_IMAGE_BYTES = 500 * 1024;
+
+        async function savePhotoRow(firestoreId) {
+            const fileInput = document.getElementById(`photo-${firestoreId}`);
+            const file = fileInput.files[0];
+            if (!file) { alert('Please choose a photo first.'); return; }
+            if (file.size > MAX_PRODUCT_IMAGE_BYTES) {
+                alert(`That photo is ${(file.size / 1024).toFixed(0)}KB, which is over the 500KB limit. Please use a smaller or more compressed photo.`);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    await updateProductImage(firestoreId, e.target.result);
+                    await renderInventoryTable();
+                } catch (err) {
+                    alert('Could not save this photo -- please check your connection and try again.');
+                    console.error('[inventory_management] updateProductImage failed:', err);
+                }
+            };
+            reader.readAsDataURL(file);
         }
 
         function handleCSVUpload() {
