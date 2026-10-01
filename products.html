@@ -48,6 +48,23 @@
             font-size: 1.1rem;
         }
     </style>
+    <style>
+        /* Click-to-zoom product photo lightbox */
+        .table-img { cursor: zoom-in; transition: transform 0.15s; }
+        .table-img:hover { transform: scale(1.08); }
+        #imgLightboxOverlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82);
+            z-index: 10000; align-items: center; justify-content: center; flex-direction: column;
+            padding: 20px; box-sizing: border-box;
+        }
+        #imgLightboxOverlay.open { display: flex; }
+        #imgLightboxOverlay img { max-width: min(90vw, 600px); max-height: 75vh; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        #imgLightboxCaption { color: white; margin-top: 14px; font-size: 1.1rem; font-weight: bold; text-align: center; }
+        #imgLightboxClose {
+            position: absolute; top: 20px; right: 28px; color: white; font-size: 2.2rem;
+            cursor: pointer; line-height: 1; background: none; border: none;
+        }
+    </style>
 </head>
 <body>
 
@@ -105,6 +122,12 @@
         </div>
     </section>
 
+    <div id="imgLightboxOverlay" onclick="if (event.target === this) closeImageLightbox()">
+        <button id="imgLightboxClose" onclick="closeImageLightbox()" aria-label="Close">&times;</button>
+        <img id="imgLightboxImg" src="" alt="">
+        <p id="imgLightboxCaption"></p>
+    </div>
+
     <footer>
         <div class="social-links">
             <a href="https://share.google/gHRP1nYVd6uUMx2Lu" target="_blank"><i class="fab fa-facebook-f"></i></a>
@@ -133,6 +156,21 @@
             );
         }
 
+        function openImageLightbox(src, name) {
+            document.getElementById('imgLightboxImg').src = src;
+            document.getElementById('imgLightboxImg').alt = name;
+            document.getElementById('imgLightboxCaption').textContent = name;
+            document.getElementById('imgLightboxOverlay').classList.add('open');
+        }
+
+        function closeImageLightbox() {
+            document.getElementById('imgLightboxOverlay').classList.remove('open');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeImageLightbox();
+        });
+
         async function renderProductTable() {
             const tbody = document.getElementById('productTableBody');
             tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#888;">Loading products...</td></tr>`;
@@ -142,7 +180,7 @@
                 const disabled = p.stock <= 0 ? 'disabled' : '';
                 return `
                     <tr>
-                        <td><img src="${escapeHTMLProducts(p.image)}" alt="${escapeHTMLProducts(p.name)}" class="table-img"></td>
+                        <td><img src="${escapeHTMLProducts(p.image)}" alt="${escapeHTMLProducts(p.name)}" class="table-img" onclick="openImageLightbox('${escapeHTMLProducts(p.image).replace(/'/g,"\\'")}', '${escapeHTMLProducts(p.name).replace(/'/g,"\\'")}')"></td>
                         <td><b>${escapeHTMLProducts(p.name)}</b><br><small>${escapeHTMLProducts(p.description)}</small></td>
                         <td>${escapeHTMLProducts(p.category)}</td>
                         <td>${escapeHTMLProducts(p.unitSize)}</td>
