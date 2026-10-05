@@ -272,6 +272,13 @@
                 submitBtn.disabled = true; submitBtn.textContent = 'Logging in...';
                 try {
                     const user = await window.CPFirebase.loginFarmer(phoneVal, pinVal);
+                    // Repairs a missing Farmer Database record (e.g. registration's profile save failed
+                    // silently). Never blocks login: the account itself is already valid at this point.
+                    try {
+                        await ensureFarmerProfile(user, phoneVal);
+                    } catch (profileErr) {
+                        console.error('[farmer_login] Could not ensure Farmer Database profile:', profileErr);
+                    }
                     alert(`Welcome back, ${user.displayName || 'farmer'}!`);
                     window.location.href = 'home.html';
                 } catch (err) {

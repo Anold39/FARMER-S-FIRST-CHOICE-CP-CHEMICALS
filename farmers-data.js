@@ -74,6 +74,49 @@ async function addFarmerProfile(name, phone, district, crops, hectares, rating, 
     return { firestoreId: ref.id, ...record };
 }
 
+/** Finds a farmer record by Firebase Auth uid, or null. */
+async function findFarmerByUid(uid) {
+    const { db, collection, query, where, getDocs } = window.CPFirebase;
+    if (!uid) return null;
+    const snap = await getDocs(query(collection(db, 'farmers'), where('uid', '==', uid)));
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { firestoreId: d.id, ...d.data() };
+}
+
+/**
+ * Called at LOGIN (farmer_login.html). Guarantees a logged-in farmer has a Farmer Database record,
+ * creating a minimal one if registration's profile save never succeeded (it fails silently by
+ * design so a profile problem can't block someone from using the site). Looks up by uid first,
+ * then by phone (stamping the uid onto a staff pre-added record), and only creates a new record if
+ * neither matches. Details the farmer entered at registration but we no longer have (district,
+ * crops, hectares) are left at the same neutral defaults the CSV import uses; staff can edit them.
+ */
+async function ensureFarmerProfile(user, phone) {
+    const { db, collection, doc, addDoc, updateDoc } = window.CPFirebase;
+
+    const byUid = await findFarmerByUid(user.uid);
+    if (byUid) return byUid;
+
+    const byPhone = await findFarmerByPhone(phone);
+    if (byPhone) {
+        await updateDoc(doc(db, 'farmers', byPhone.firestoreId), { uid: user.uid });
+        return { ...byPhone, uid: user.uid };
+    }
+
+    const now = new Date();
+    const record = {
+        name: user.displayName || 'Farmer',
+        phone: normalizePhone(phone),
+        district: 'Other', crops: 'None Selected', hectares: 0, rating: '5',
+        uid: user.uid,
+        date: now.toLocaleDateString(),
+        timestamp: now.toISOString()
+    };
+    const ref = await addDoc(collection(db, 'farmers'), record);
+    return { firestoreId: ref.id, ...record };
+}
+
 /** Updates one farmer record -- writes only that one document. */
 async function updateFarmerProfile(firestoreId, fields) {
     const { db, doc, updateDoc } = window.CPFirebase;
