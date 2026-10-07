@@ -117,6 +117,28 @@ async function updateProductImage(firestoreId, imageDataUrl) {
     await updateDoc(doc(db, 'products', firestoreId), { image: imageDataUrl });
 }
 
+// ---- Delete support (added so staff can remove products from the catalogue) ----
+// Removes ONE product document. Callers must confirm with the user first.
+async function deleteProduct(firestoreId) {
+    const { db, doc, deleteDoc } = window.CPFirebase;
+    await deleteDoc(doc(db, 'products', firestoreId));
+}
+
+// Removes every product whose name exactly matches one of the original DEFAULT_PRODUCTS demo items.
+// Safety: refuses to run if no non-demo products exist, because an empty collection would make
+// seedProductsIfEmpty() re-create the demo catalogue on the next page load.
+async function deleteDemoProducts() {
+    const demoNames = new Set(DEFAULT_PRODUCTS.map(p => p.name));
+    const all = await getProducts();
+    const demo = all.filter(p => demoNames.has(p.name));
+    const real = all.length - demo.length;
+    if (real === 0) {
+        return { deleted: 0, refused: true, reason: 'No non-demo products exist yet. Upload your real products CSV first.' };
+    }
+    for (const p of demo) { await deleteProduct(p.firestoreId); }
+    return { deleted: demo.length, refused: false };
+}
+
 function getStockStatus(stock) {
     const s = parseInt(stock) || 0;
     if (s <= 0) return { label: "Out of Stock", cssClass: "stock-out" };

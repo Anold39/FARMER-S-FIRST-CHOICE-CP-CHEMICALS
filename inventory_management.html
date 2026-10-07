@@ -40,6 +40,7 @@
         .product-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; display: block; margin-bottom: 6px; }
         .photo-upload-input { font-size: 0.72rem; width: 130px; display: block; margin-bottom: 4px; }
         .btn-save-photo { background: #455a64; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 0.72rem; }
+        .btn-delete-row { background: #b71c1c; color: white; border: none; padding: 6px 10px; border-radius: 5px; cursor: pointer; font-size: 0.75rem; }
     </style>
 </head>
 <body>
@@ -84,6 +85,7 @@
             <br>
             <button class="btn-teal" onclick="handleCSVUpload()"><i class="fas fa-upload"></i> Upload & Merge</button>
             <button class="btn-teal" style="background:#455a64;" onclick="downloadCurrentCatalogueCSV()"><i class="fas fa-download"></i> Download Current Catalogue as CSV</button>
+            <button class="btn-teal" style="background:#b71c1c;" onclick="removeDemoProducts()"><i class="fas fa-trash"></i> Remove Original Demo Products</button>
             <div id="uploadResult" class="upload-result"></div>
         </div>
 
@@ -110,6 +112,7 @@
                         <th>Stock Qty</th>
                         <th>Status</th>
                         <th>Action</th>
+                        <th>Remove</th>
                     </tr>
                 </thead>
                 <tbody id="inventory-table-body"></tbody>
@@ -142,7 +145,7 @@
 
             const tbody = document.getElementById('inventory-table-body');
             if (products.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#888;">No products match.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#888;">No products match.</td></tr>';
                 return;
             }
 
@@ -162,8 +165,33 @@
                         <td><input type="number" min="0" class="stock-input" id="stock-${p.firestoreId}" value="${p.stock}"></td>
                         <td><span class="${status.cssClass}">${escapeHTMLInv(status.label)}</span></td>
                         <td><button class="btn-save-row" onclick="saveStockRow('${p.firestoreId}')">Save</button></td>
+                        <td><button class="btn-delete-row" onclick="deleteProductRow('${p.firestoreId}', this.dataset.name)" data-name="${escapeHTMLInv(p.name)}"><i class="fas fa-trash"></i> Delete</button></td>
                     </tr>`;
             }).join('');
+        }
+
+        async function deleteProductRow(firestoreId, name) {
+            if (!confirm(`Permanently delete "${name}" from the catalogue? This cannot be undone.`)) return;
+            try {
+                await deleteProduct(firestoreId);
+                await renderInventoryTable();
+            } catch (err) {
+                console.error(err);
+                alert('Could not delete this product. Please refresh and try again.');
+            }
+        }
+
+        async function removeDemoProducts() {
+            if (!confirm('Delete all of the original demo products (the 28 items the system started with)? Your real products are not touched. This cannot be undone.')) return;
+            try {
+                const result = await deleteDemoProducts();
+                if (result.refused) { alert(result.reason); return; }
+                alert(`${result.deleted} demo product(s) removed.`);
+                await renderInventoryTable();
+            } catch (err) {
+                console.error(err);
+                alert('Could not remove the demo products. Please refresh and try again.');
+            }
         }
 
         // Writes ONLY this one product's stock field in Firestore -- not the whole catalogue -- so two
