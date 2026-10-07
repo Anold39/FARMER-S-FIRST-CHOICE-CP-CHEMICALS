@@ -69,14 +69,20 @@ async function getAgriTalkCasesByFarmerName(name) {
  * different cases at the same moment can never overwrite each other's
  * change (same reasoning as updateEscalationRecord() in escalations-data.js).
  */
-async function replyToAgriTalkCase(firestoreId, replyText) {
+async function replyToAgriTalkCase(firestoreId, replyText, prescription = [], staffName = '') {
     const { db, doc, getDoc, updateDoc } = window.CPFirebase;
     const ref = doc(db, 'agritalk_cases', firestoreId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     const existing = snap.data();
     const replies = Array.isArray(existing.replies) ? existing.replies.slice() : [];
-    replies.push({ text: replyText, time: new Date().toLocaleString() });
+    // prescription: [{ name, quantity }] -- the products the agronomist recommends for this farmer.
+    // Only the product NAME and QUANTITY are stored; the farmer's view looks up the live price and
+    // stock from the catalogue, so a later price change is always reflected at checkout.
+    const rx = (Array.isArray(prescription) ? prescription : [])
+        .map(p => ({ name: String(p.name || '').trim(), quantity: Math.max(1, parseInt(p.quantity) || 1) }))
+        .filter(p => p.name);
+    replies.push({ text: replyText, time: new Date().toLocaleString(), by: staffName || '', prescription: rx });
     await updateDoc(ref, { replies, status: 'Resolved' });
     return { firestoreId, ...existing, replies, status: 'Resolved' };
 }

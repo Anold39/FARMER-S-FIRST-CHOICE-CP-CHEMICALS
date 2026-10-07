@@ -224,6 +224,7 @@
     <script src="diagnosis-log.js"></script>
     <script src="blog-data.js"></script>
     <script src="agritalk-cases-data.js"></script>
+    <script src="products-data.js"></script>
     <script>
         function logoutStaff() {
             if(confirm("Are you sure you want to log out of the Agronomist Dashboard?")) {
@@ -232,12 +233,48 @@
             }
         }
 
+        // ---- Prescription drafts: products the agronomist adds to a reply, per case ----
+        const rxDraft = {};
+        let rxCatalogue = [];
+
+        function renderRxList(id) {
+            const el = document.getElementById(`rx-list-${id}`);
+            if (!el) return;
+            const items = rxDraft[id] || [];
+            if (items.length === 0) { el.innerHTML = '<span style="color:#888; font-size:0.8rem;">No products prescribed yet (optional).</span>'; return; }
+            el.innerHTML = items.map((it, i) => `
+                <span style="display:inline-flex; align-items:center; gap:6px; background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; border-radius:14px; padding:3px 10px; margin:2px 6px 2px 0; font-size:0.82rem;">
+                    <b>${it.quantity} x</b> ${escapeHTML(it.name)}
+                    <a href="#" onclick="removeRx('${id}', ${i}); return false;" style="color:#b71c1c; text-decoration:none; font-weight:bold;" title="Remove">&times;</a>
+                </span>`).join('');
+        }
+
+        function addRx(id) {
+            const sel = document.getElementById(`rx-select-${id}`);
+            const qtyEl = document.getElementById(`rx-qty-${id}`);
+            const name = sel.value;
+            const qty = parseInt(qtyEl.value);
+            if (!name) { alert('Please choose a product to prescribe.'); return; }
+            if (isNaN(qty) || qty < 1) { alert('Please enter a quantity of 1 or more.'); return; }
+            const list = rxDraft[id] = rxDraft[id] || [];
+            const existing = list.find(x => x.name === name);
+            if (existing) existing.quantity = qty; else list.push({ name, quantity: qty });
+            sel.value = ''; qtyEl.value = 1;
+            renderRxList(id);
+        }
+
+        function removeRx(id, index) {
+            (rxDraft[id] || []).splice(index, 1);
+            renderRxList(id);
+        }
+
         // Live Communication and Dashboard Logic
         function loadFarmerQueries() {
             const queriesArea = document.getElementById('incoming-queries-area');
             queriesArea.innerHTML = '<p style="color:#666; padding: 20px; background: white; border-radius: 8px;">Loading farmer inquiries...</p>';
 
-            getAgriTalkCases().then(queries => {
+            Promise.all([getAgriTalkCases(), getProducts().catch(() => [])]).then(([queries, products]) => {
+            rxCatalogue = products.slice().sort((a, b) => a.name.localeCompare(b.name));
             if (queries.length === 0) {
                 queriesArea.innerHTML = '<p style="color:#666; padding: 20px; background: white; border-radius: 8px;">No active farmer inquiries at the moment.</p>';
                 return;
@@ -264,9 +301,22 @@
                     ${q.replies && q.replies.length > 0 ? `
                         <div style="background: #f0f4f8; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
                             <strong style="font-size: 0.85rem; color: #1a237e;">Previous Replies:</strong>
-                            ${q.replies.map(r => `<p style="margin: 4px 0; font-size: 0.9rem;">${escapeHTML(r.text)} <em style="font-size: 0.75rem; color: #777;">(${escapeHTML(r.time)})</em></p>`).join('')}
+                            ${q.replies.map(r => `<p style="margin: 4px 0; font-size: 0.9rem;">${escapeHTML(r.text)} <em style="font-size: 0.75rem; color: #777;">(${escapeHTML(r.time)}${r.by ? ', ' + escapeHTML(r.by) : ''})</em>${(r.prescription && r.prescription.length) ? `<br><small style="color:#1b5e20;"><b>Prescribed:</b> ${r.prescription.map(p => escapeHTML(p.quantity + ' x ' + p.name)).join(', ')}</small>` : ''}</p>`).join('')}
                         </div>
                     ` : ''}
+
+                    <div style="background:#f7fbf7; border:1px dashed #a5d6a7; border-radius:6px; padding:10px; margin-top:10px;">
+                        <strong style="font-size:0.85rem; color:#1b5e20;"><i class="fas fa-prescription-bottle-medical"></i> Prescribe products (optional)</strong>
+                        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                            <select id="rx-select-${q.firestoreId}" style="flex:1; min-width:180px; padding:7px; border:1px solid #ccc; border-radius:4px;">
+                                <option value="">-- Choose a product --</option>
+                                ${rxCatalogue.map(p => `<option value="${escapeHTML(p.name)}">${escapeHTML(p.name)} (${escapeHTML(p.unitSize)}, $${parseFloat(p.price).toFixed(2)})</option>`).join('')}
+                            </select>
+                            <input type="number" id="rx-qty-${q.firestoreId}" value="1" min="1" style="width:70px; padding:7px; border:1px solid #ccc; border-radius:4px;" title="Quantity (number of packs)">
+                            <button type="button" onclick="addRx('${q.firestoreId}')" style="background:#2e7d32; color:white; border:none; border-radius:4px; padding:7px 14px; cursor:pointer;"><i class="fas fa-plus"></i> Add</button>
+                        </div>
+                        <div id="rx-list-${q.firestoreId}" style="margin-top:8px;"></div>
+                    </div>
 
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
                         <input type="text" id="reply-input-${q.firestoreId}" placeholder="Type response to farmer..." style="flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px;">
@@ -275,6 +325,7 @@
                     </div>
                 </div>
             `).join('');
+            queries.forEach(q => renderRxList(q.firestoreId));
             }).catch(err => {
                 queriesArea.innerHTML = '<p style="color:#c62828; padding: 20px; background: white; border-radius: 8px;">Could not load farmer inquiries -- please refresh and try again.</p>';
                 console.error('[staff_portal] getAgriTalkCases failed:', err);
@@ -288,7 +339,10 @@
                 return;
             }
 
-            const updated = await replyToAgriTalkCase(firestoreId, replyText);
+            const staffEl = document.getElementById('loggedInStaffName');
+            const staffName = (staffEl && staffEl.textContent && staffEl.textContent !== 'Loading...') ? staffEl.textContent.trim() : '';
+            const prescription = (rxDraft[firestoreId] || []).slice();
+            const updated = await replyToAgriTalkCase(firestoreId, replyText, prescription, staffName);
             if (!updated) {
                 alert('Could not find this case -- it may have just been deleted. Refreshing the list.');
                 loadFarmerQueries();
@@ -307,8 +361,8 @@
                         crop: '',
                         symptom: '',
                         query: updated.message || '',
-                        productRecommended: '',
-                        agronomistName: '',
+                        productRecommended: prescription.map(p => p.name).join(', '),
+                        agronomistName: staffName,
                         notes: `Agri-Talk reply (branch: ${updated.branch || 'General'}): ${replyText}`
                     });
                 } catch (err) {
@@ -316,6 +370,7 @@
                 }
             }
 
+            delete rxDraft[firestoreId];
             loadFarmerQueries();
         }
 
