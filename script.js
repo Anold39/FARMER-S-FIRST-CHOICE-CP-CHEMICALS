@@ -55,7 +55,7 @@ function readFileAsDataURL(file) {
 }
 
 function getCartFromStorage() {
-    const raw = localStorage.getItem('CP_CART') || localStorage.getItem('cp_cart');
+    const raw = localStorage.getItem('cp_cart');
     return raw ? JSON.parse(raw) : [];
 }
 
@@ -74,9 +74,40 @@ function updateCartCount() {
     }
 }
 
-// addToCart(name, price, qtyInputId) removed from here — it was dead code, always overridden
-// by page-specific versions on products.html and test-advisor.html. getCartFromStorage(),
-// updateCartCount() etc. below still read the shared 'cp_cart' / 'CP_CART' keys those pages write to.
+function addToCart(name, price, qtyInputId) {
+    const quantityInput = document.getElementById(qtyInputId);
+    const quantity = parseInt(quantityInput.value);
+
+    if (isNaN(quantity) || quantity <= 0) {
+        alert("Please enter a valid quantity of 1 or more.");
+        return;
+    }
+
+    const existingItemIndex = cart.findIndex(item => item.name === name);
+
+    if (existingItemIndex > -1) {
+        cart[existingItemIndex].qty += quantity;
+        cart[existingItemIndex].subtotal = cart[existingItemIndex].qty * price;
+    } else {
+        cart.push({ 
+            name: name, 
+            price: parseFloat(price), 
+            qty: quantity,
+            subtotal: parseFloat(price) * quantity 
+        });
+    }
+
+    localStorage.setItem('CP_CART', JSON.stringify(cart));
+    localStorage.setItem('cp_cart', JSON.stringify(cart));
+    updateCartCount();
+    
+    if (document.getElementById('agritalk-cart-items')) {
+        updateAgriTalkSidebar();
+    }
+    
+    alert(`${quantity}x ${name} successfully added to your cart!`);
+    quantityInput.value = 1;
+}
 
 function loadCartPage() {
     const cartTable = document.getElementById('cart-items');
@@ -262,15 +293,57 @@ function openAgri(topic) {
     updateAgriTalkSidebar();
 }
 
-// publishPost() removed from here — staff_portal.html defines its own copy (writes 'CP_BLOGS').
-// See note in section 5 below for why duplicate names were removed from this shared file.
+async function publishPost() {
+    const titleInput = document.getElementById('blogTitle');
+    const contentInput = document.getElementById('blogContent');
+    const fileInput = document.getElementById('blogImage'); 
+    
+    if (!titleInput || !contentInput) return;
 
-async function loadBlogPosts() {
+    if (!titleInput.value.trim() || !contentInput.value.trim()) {
+        alert("Please provide both a title and expert advice.");
+        return;
+    }
+
+    let imageData = "";
+    if (fileInput && fileInput.files[0]) {
+        try {
+            imageData = await readFileAsDataURL(fileInput.files[0]);
+        } catch (err) {
+            alert("Error parsing image file.");
+            return;
+        }
+    }
+
+    const newPost = {
+        title: escapeHTML(titleInput.value.trim()),
+        content: escapeHTML(contentInput.value.trim()),
+        image: imageData,
+        date: new Date().toLocaleDateString()
+    };
+
+    try {
+        let posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+        posts.unshift(newPost);
+        localStorage.setItem('CP_BLOGS', JSON.stringify(posts));
+        
+        alert("Post Published Live to Agri-Talk!");
+        titleInput.value = "";
+        contentInput.value = "";
+        if (fileInput) fileInput.value = "";
+        
+        if (typeof manageStaffPosts === "function") manageStaffPosts();
+    } catch (e) {
+        alert("Storage limit reached! Please use a smaller image file.");
+    }
+}
+
+function loadBlogPosts() {
     const display = document.getElementById('agri-display');
     if (!display) return;
-
-    const posts = await getBlogPosts();
-
+    
+    const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+    
     if (posts.length === 0) {
         display.innerHTML = "<h3>Latest Updates</h3><p>Select a topic or wait for new updates.</p>";
         return;
@@ -281,10 +354,10 @@ async function loadBlogPosts() {
         const imgTag = post.image ? `<img src="${post.image}" style="width:100%; max-width:400px; border-radius:8px; margin:10px 0;">` : "";
         blogHTML += `
             <div class="blog-entry" style="border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px;">
-                <h4>${escapeHTML(post.title)}</h4>
+                <h4>${post.title}</h4>
                 <small>${escapeHTML(post.date)}</small>
                 ${imgTag}
-                <p>${escapeHTML(post.content)}</p>
+                <p>${post.content}</p>
             </div>`;
     });
     display.innerHTML = blogHTML;
@@ -301,12 +374,143 @@ function proceedToCheckout() {
 
 // ==========================================
 // 5. STAFF PORTAL LOGIC
-// NOTE: submitQuery / loadFarmerQueries / resolveQuery / deleteQuery / manageStaffPosts / deletePost
-// were removed from this shared file. Each page that needs this behaviour (agritalk.html,
-// staff_portal.html) now defines its own copy inline, all standardized on the 'agronomyQueries'
-// and 'CP_BLOGS' localStorage keys. Duplicate global function names here were silently
-// overriding those inline versions (script.js loads last on those pages), which is what caused
-// farmer queries and published posts to disappear. Do not re-add same-named functions here.
+// ==========================================
+
+async function submitQuery() {
+    const form = document.getElementById('agronomyForm');
+    const messageVal = document.getElementById('queryMessage').value.trim();
+    if (!messageVal) { alert("Please describe your issue."); return; }
+
+    const btn = form.querySelector('button');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    btn.disabled = true;
+    
+    const fileInput = form.querySelector('input[type="file"]');
+    let imageData = "";
+    if (fileInput?.files[0]) {
+        try {
+            imageData = await readFileAsDataURL(fileInput.files[0]);
+        } catch (e) {
+            alert("Unable to process the attachment image.");
+            btn.innerHTML = 'Submit Case to Agronomy Dept';
+            btn.disabled = false;
+            return;
+        }
+    }
+
+    const newQuery = {
+        name: escapeHTML(document.getElementById('farmerName').value.trim() || "Anonymous"),
+        branch: escapeHTML(document.getElementById('branchSelect').value),
+        message: escapeHTML(messageVal),
+        image: imageData,
+        date: new Date().toLocaleString(),
+        status: "New"
+    };
+
+    try {
+        let allQueries = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
+        allQueries.unshift(newQuery);
+        localStorage.setItem('CP_QUERIES', JSON.stringify(allQueries));
+
+        setTimeout(() => {
+            alert("Query sent successfully!");
+            form.reset();
+            btn.innerHTML = 'Submit Case to Agronomy Dept';
+            btn.disabled = false;
+            if (document.getElementById('incoming-queries-area')) loadFarmerQueries();
+        }, 800);
+    } catch (e) {
+        alert("Storage error. The image file may be too large to save locally.");
+        btn.innerHTML = 'Submit Case to Agronomy Dept';
+        btn.disabled = false;
+    }
+}
+
+function loadFarmerQueries() {
+    const container = document.getElementById('incoming-queries-area');
+    if (!container) return;
+    const queries = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
+
+    if (queries.length === 0) {
+        container.innerHTML = `<p style="text-align:center; padding:20px; color:#999;">No active inquiries.</p>`;
+        return;
+    }
+
+    let html = "";
+    queries.forEach((q, index) => {
+        const img = q.image ? `
+            <div style="flex-shrink: 0; margin: 0 15px;">
+                <img src="${q.image}" style="width:120px; height:80px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;" onclick="window.open(this.src)">
+            </div>` : "";
+
+        html += `
+            <div class="query-card" style="display:flex; align-items:center; background:#fff; border:1px solid #ddd; padding:20px; margin-bottom:15px; border-radius:8px;">
+                <div style="flex: 1;">
+                    <span style="font-size:0.75rem; background:${q.status === 'Resolved' ? '#28a745' : '#ffc107'}; color:${q.status === 'Resolved' ? '#fff' : '#000'}; padding:2px 8px; border-radius:4px; font-weight:bold;">${escapeHTML(q.status)}</span>
+                    <h4>${q.name} <small>(${q.branch})</small></h4>
+                    <p>${q.message}</p>
+                    <small>${escapeHTML(q.date)}</small>
+                </div>
+                ${img}
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button onclick="resolveQuery(${index})" style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Resolve</button>
+                    <button onclick="deleteQuery(${index})" style="background:#dc3545; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Delete</button>
+                </div>
+            </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function resolveQuery(i) {
+    let q = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
+    if (q[i]) {
+        q[i].status = "Resolved";
+        localStorage.setItem('CP_QUERIES', JSON.stringify(q));
+        loadFarmerQueries();
+    }
+}
+
+function deleteQuery(i) {
+    if (confirm("Delete this inquiry permanently?")) {
+        let q = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
+        q.splice(i, 1);
+        localStorage.setItem('CP_QUERIES', JSON.stringify(q));
+        loadFarmerQueries();
+    }
+}
+
+function manageStaffPosts() {
+    const container = document.getElementById('manage-posts-area');
+    if (!container) return;
+    const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+    
+    if (posts.length === 0) {
+        container.innerHTML = "<p style='color:#777;'>No posts available in storage.</p>";
+        return;
+    }
+
+    let html = "<table style='width:100%; border-collapse: collapse;'>";
+    posts.forEach((p, i) => {
+        html += `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px 0;"><strong>${p.title}</strong> <br><small style="color:#888;">${p.date}</small></td>
+                <td style='text-align:right;'><button onclick='deletePost(${i})' style='background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;'>Remove</button></td>
+            </tr>`;
+    });
+    container.innerHTML = html + "</table>";
+}
+
+function deletePost(i) {
+    if (confirm("Delete this post permanently?")) {
+        let p = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
+        p.splice(i, 1);
+        localStorage.setItem('CP_BLOGS', JSON.stringify(p));
+        manageStaffPosts();
+    }
+}
+
+// ==========================================
+// 6. INITIALIZATION & EVENT SYNC
 // ==========================================
 
 function setupAudio() {
@@ -346,9 +550,8 @@ function initPage() {
         updateAgriTalkSidebar(); 
     }
     
-    // loadFarmerQueries() and loadManagePosts() are intentionally NOT called here — each page
-    // that has these elements (currently only staff_portal.html) defines and calls its own
-    // versions inline. See the note in section 5 above.
+    if (document.getElementById('incoming-queries-area')) loadFarmerQueries();
+    if (document.getElementById('manage-posts-area')) manageStaffPosts();
 }
 
 document.addEventListener('DOMContentLoaded', initPage);

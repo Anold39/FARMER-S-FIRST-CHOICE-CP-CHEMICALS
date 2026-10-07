@@ -302,7 +302,7 @@
             });
             const json = JSON.stringify(cart);
             localStorage.setItem('cp_cart', json);
-            localStorage.setItem('CP_CART', json);
+            localStorage.removeItem('CP_CART'); // legacy duplicate key; cp_cart is the single source of truth
             if (typeof updateCartCount === 'function') updateCartCount();
             if (typeof updateAgriTalkSidebar === 'function') updateAgriTalkSidebar();
             let html = '';

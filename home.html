@@ -13,7 +13,7 @@
         <nav>
             <div class="logo">
                 <a href="index.html" class="logo-link">
-                    <img src="20th Anniversary.png" alt="20th Anniversary" class="Anniversary">
+                    <img src="C:\Users\yaza\CP Chemicals Website\20th Anniversary.png" alt="20th Anniversary" class="Anniversary">
                     <span class="intro-hint"><i class="fas fa-play-circle"></i> </span>
                 </a>
             </div>
@@ -29,7 +29,6 @@
                     <i class="fas fa-shopping-cart"></i> Cart (<span id="cart-count">0</span>)
                 </a></button></li>
                 
-                <li><button><a href="order_history.html">My Orders</a></button></li>
                 <li><button><a href="farmer_login.html">Farmer Registration</a></button></li>
             </ul>
         </nav>
@@ -38,7 +37,7 @@
     <section id="home" class="hero">
         <div class="slideshow-container">
             <div class="slide fade">
-                <img src="cp.png" alt="CP-Headquarters">
+                <img src="C:\Users\yaza\CP Chemicals Website\cp.png" alt="CP-Headquarters">
                 
                 <div class="hero-text">
                     <h1><span class="cp-blue">CP</span><span class="cp-green">Chemicals</span></h1>
@@ -50,11 +49,11 @@
         <br>
         
         <div style="text-align: center;">
-            <img src="logo.png" alt="CP Chemicals" class="CP-logo2">
+            <img src="C:\Users\yaza\CP Chemicals Website\logo.png" alt="CP Chemicals" class="CP-logo2">
         </div>
 
         <audio id="bgMusic" loop>
-            <source src="protect.mp3" type="audio/mpeg">
+            <source src="C:\Users\yaza\CP Chemicals Website\protect.mp3" type="audio/mpeg">
         </audio>
         
         <button id="toggleAudio"><i class="fas fa-volume-up"></i></button>
@@ -93,7 +92,7 @@
     <script>
         // Direct Override to prevent cached navbar numbers on Home landing
         function syncHomeCart() {
-            const raw = localStorage.getItem('CP_CART') || localStorage.getItem('cp_cart');
+            const raw = localStorage.getItem('cp_cart');
             const cartData = raw ? JSON.parse(raw) : [];
             const total = cartData.reduce((sum, item) => sum + (parseInt(item.qty || item.quantity) || 1), 0);
             const badge = document.getElementById('cart-count');
