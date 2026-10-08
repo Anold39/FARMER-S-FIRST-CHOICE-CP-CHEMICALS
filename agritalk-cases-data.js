@@ -69,7 +69,7 @@ async function getAgriTalkCasesByFarmerName(name) {
  * different cases at the same moment can never overwrite each other's
  * change (same reasoning as updateEscalationRecord() in escalations-data.js).
  */
-async function replyToAgriTalkCase(firestoreId, replyText, prescription = [], staffName = '') {
+async function replyToAgriTalkCase(firestoreId, replyText, prescription = [], staffName = '', imageData = null) {
     const { db, doc, getDoc, updateDoc } = window.CPFirebase;
     const ref = doc(db, 'agritalk_cases', firestoreId);
     const snap = await getDoc(ref);
@@ -82,7 +82,14 @@ async function replyToAgriTalkCase(firestoreId, replyText, prescription = [], st
     const rx = (Array.isArray(prescription) ? prescription : [])
         .map(p => ({ name: String(p.name || '').trim(), quantity: Math.max(1, parseInt(p.quantity) || 1) }))
         .filter(p => p.name);
-    replies.push({ text: replyText, time: new Date().toLocaleString(), by: staffName || '', prescription: rx });
+    const reply = { text: replyText, time: new Date().toLocaleString(), by: staffName || '', prescription: rx };
+    // Optional photo from the agronomist (already compressed by the staff portal before it gets here).
+    if (imageData) reply.image = imageData;
+    replies.push(reply);
+    // A Firestore document is capped at about 1MB in total (the farmer's own photo + every reply photo count).
+    if (JSON.stringify({ ...existing, replies }).length > 950000) {
+        throw new Error('This case is too large to add another photo. Send the reply without a photo, or use a smaller one.');
+    }
     await updateDoc(ref, { replies, status: 'Resolved' });
     return { firestoreId, ...existing, replies, status: 'Resolved' };
 }
