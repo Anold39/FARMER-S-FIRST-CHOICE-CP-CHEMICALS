@@ -417,7 +417,6 @@ async function submitQuery() {
             form.reset();
             btn.innerHTML = 'Submit Case to Agronomy Dept';
             btn.disabled = false;
-            if (document.getElementById('incoming-queries-area')) loadFarmerQueries();
         }, 800);
     } catch (e) {
         alert("Storage error. The image file may be too large to save locally.");
@@ -426,58 +425,8 @@ async function submitQuery() {
     }
 }
 
-function loadFarmerQueries() {
-    const container = document.getElementById('incoming-queries-area');
-    if (!container) return;
-    const queries = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
-
-    if (queries.length === 0) {
-        container.innerHTML = `<p style="text-align:center; padding:20px; color:#999;">No active inquiries.</p>`;
-        return;
-    }
-
-    let html = "";
-    queries.forEach((q, index) => {
-        const img = q.image ? `
-            <div style="flex-shrink: 0; margin: 0 15px;">
-                <img src="${q.image}" style="width:120px; height:80px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;" onclick="window.open(this.src)">
-            </div>` : "";
-
-        html += `
-            <div class="query-card" style="display:flex; align-items:center; background:#fff; border:1px solid #ddd; padding:20px; margin-bottom:15px; border-radius:8px;">
-                <div style="flex: 1;">
-                    <span style="font-size:0.75rem; background:${q.status === 'Resolved' ? '#28a745' : '#ffc107'}; color:${q.status === 'Resolved' ? '#fff' : '#000'}; padding:2px 8px; border-radius:4px; font-weight:bold;">${escapeHTML(q.status)}</span>
-                    <h4>${q.name} <small>(${q.branch})</small></h4>
-                    <p>${q.message}</p>
-                    <small>${escapeHTML(q.date)}</small>
-                </div>
-                ${img}
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <button onclick="resolveQuery(${index})" style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Resolve</button>
-                    <button onclick="deleteQuery(${index})" style="background:#dc3545; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Delete</button>
-                </div>
-            </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function resolveQuery(i) {
-    let q = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
-    if (q[i]) {
-        q[i].status = "Resolved";
-        localStorage.setItem('CP_QUERIES', JSON.stringify(q));
-        loadFarmerQueries();
-    }
-}
-
-function deleteQuery(i) {
-    if (confirm("Delete this inquiry permanently?")) {
-        let q = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
-        q.splice(i, 1);
-        localStorage.setItem('CP_QUERIES', JSON.stringify(q));
-        loadFarmerQueries();
-    }
-}
+// NOTE: loadFarmerQueries / resolveQuery / deleteQuery used to live here (Tier 1, localStorage).
+// They overrode the Firestore versions defined in staff_portal.html, so they were removed.
 
 function manageStaffPosts() {
     const container = document.getElementById('manage-posts-area');
@@ -550,7 +499,6 @@ function initPage() {
         updateAgriTalkSidebar(); 
     }
     
-    if (document.getElementById('incoming-queries-area')) loadFarmerQueries();
     if (document.getElementById('manage-posts-area')) manageStaffPosts();
 }
 
