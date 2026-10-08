@@ -293,50 +293,7 @@ function openAgri(topic) {
     updateAgriTalkSidebar();
 }
 
-async function publishPost() {
-    const titleInput = document.getElementById('blogTitle');
-    const contentInput = document.getElementById('blogContent');
-    const fileInput = document.getElementById('blogImage'); 
-    
-    if (!titleInput || !contentInput) return;
-
-    if (!titleInput.value.trim() || !contentInput.value.trim()) {
-        alert("Please provide both a title and expert advice.");
-        return;
-    }
-
-    let imageData = "";
-    if (fileInput && fileInput.files[0]) {
-        try {
-            imageData = await readFileAsDataURL(fileInput.files[0]);
-        } catch (err) {
-            alert("Error parsing image file.");
-            return;
-        }
-    }
-
-    const newPost = {
-        title: escapeHTML(titleInput.value.trim()),
-        content: escapeHTML(contentInput.value.trim()),
-        image: imageData,
-        date: new Date().toLocaleDateString()
-    };
-
-    try {
-        let posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
-        posts.unshift(newPost);
-        localStorage.setItem('CP_BLOGS', JSON.stringify(posts));
-        
-        alert("Post Published Live to Agri-Talk!");
-        titleInput.value = "";
-        contentInput.value = "";
-        if (fileInput) fileInput.value = "";
-        
-        if (typeof manageStaffPosts === "function") manageStaffPosts();
-    } catch (e) {
-        alert("Storage limit reached! Please use a smaller image file.");
-    }
-}
+// (legacy localStorage publishPost() removed: the page's own Firestore version is used)
 
 function loadBlogPosts() {
     const display = document.getElementById('agri-display');
@@ -376,87 +333,14 @@ function proceedToCheckout() {
 // 5. STAFF PORTAL LOGIC
 // ==========================================
 
-async function submitQuery() {
-    const form = document.getElementById('agronomyForm');
-    const messageVal = document.getElementById('queryMessage').value.trim();
-    if (!messageVal) { alert("Please describe your issue."); return; }
-
-    const btn = form.querySelector('button');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    btn.disabled = true;
-    
-    const fileInput = form.querySelector('input[type="file"]');
-    let imageData = "";
-    if (fileInput?.files[0]) {
-        try {
-            imageData = await readFileAsDataURL(fileInput.files[0]);
-        } catch (e) {
-            alert("Unable to process the attachment image.");
-            btn.innerHTML = 'Submit Case to Agronomy Dept';
-            btn.disabled = false;
-            return;
-        }
-    }
-
-    const newQuery = {
-        name: escapeHTML(document.getElementById('farmerName').value.trim() || "Anonymous"),
-        branch: escapeHTML(document.getElementById('branchSelect').value),
-        message: escapeHTML(messageVal),
-        image: imageData,
-        date: new Date().toLocaleString(),
-        status: "New"
-    };
-
-    try {
-        let allQueries = JSON.parse(localStorage.getItem('CP_QUERIES')) || [];
-        allQueries.unshift(newQuery);
-        localStorage.setItem('CP_QUERIES', JSON.stringify(allQueries));
-
-        setTimeout(() => {
-            alert("Query sent successfully!");
-            form.reset();
-            btn.innerHTML = 'Submit Case to Agronomy Dept';
-            btn.disabled = false;
-        }, 800);
-    } catch (e) {
-        alert("Storage error. The image file may be too large to save locally.");
-        btn.innerHTML = 'Submit Case to Agronomy Dept';
-        btn.disabled = false;
-    }
-}
+// (legacy localStorage submitQuery() removed: the page's own Firestore version is used)
 
 // NOTE: loadFarmerQueries / resolveQuery / deleteQuery used to live here (Tier 1, localStorage).
 // They overrode the Firestore versions defined in staff_portal.html, so they were removed.
 
-function manageStaffPosts() {
-    const container = document.getElementById('manage-posts-area');
-    if (!container) return;
-    const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
-    
-    if (posts.length === 0) {
-        container.innerHTML = "<p style='color:#777;'>No posts available in storage.</p>";
-        return;
-    }
+// (legacy localStorage manageStaffPosts() removed: the page's own Firestore version is used)
 
-    let html = "<table style='width:100%; border-collapse: collapse;'>";
-    posts.forEach((p, i) => {
-        html += `
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px 0;"><strong>${p.title}</strong> <br><small style="color:#888;">${p.date}</small></td>
-                <td style='text-align:right;'><button onclick='deletePost(${i})' style='background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;'>Remove</button></td>
-            </tr>`;
-    });
-    container.innerHTML = html + "</table>";
-}
-
-function deletePost(i) {
-    if (confirm("Delete this post permanently?")) {
-        let p = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
-        p.splice(i, 1);
-        localStorage.setItem('CP_BLOGS', JSON.stringify(p));
-        manageStaffPosts();
-    }
-}
+// (legacy localStorage deletePost() removed: the page's own Firestore version is used)
 
 // ==========================================
 // 6. INITIALIZATION & EVENT SYNC
@@ -499,7 +383,6 @@ function initPage() {
         updateAgriTalkSidebar(); 
     }
     
-    if (document.getElementById('manage-posts-area')) manageStaffPosts();
 }
 
 document.addEventListener('DOMContentLoaded', initPage);
