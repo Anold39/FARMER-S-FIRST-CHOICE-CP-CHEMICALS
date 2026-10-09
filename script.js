@@ -295,12 +295,29 @@ function openAgri(topic) {
 
 // (legacy localStorage publishPost() removed: the page's own Firestore version is used)
 
-function loadBlogPosts() {
+async function loadBlogPosts() {
     const display = document.getElementById('agri-display');
     if (!display) return;
-    
-    const posts = JSON.parse(localStorage.getItem('CP_BLOGS')) || [];
-    
+
+    // Posts live in Firestore (blog-data.js), so every visitor sees the same feed. The old version
+    // read the browser's own localStorage, which is why a deleted post could linger on one browser
+    // and the feed looked empty in a private window. Clear that stale copy once.
+    try { localStorage.removeItem('CP_BLOGS'); } catch (e) {}
+
+    if (typeof getBlogPosts !== 'function') {
+        display.innerHTML = "<h3>Latest Updates</h3><p>Select a topic or wait for new updates.</p>";
+        return;
+    }
+
+    let posts = [];
+    try {
+        posts = await getBlogPosts();
+    } catch (err) {
+        console.error('[agritalk] could not load updates:', err);
+        display.innerHTML = "<h3>Latest Updates</h3><p style='color:#888;'>Updates could not be loaded right now. Please refresh in a moment.</p>";
+        return;
+    }
+
     if (posts.length === 0) {
         display.innerHTML = "<h3>Latest Updates</h3><p>Select a topic or wait for new updates.</p>";
         return;
@@ -311,10 +328,10 @@ function loadBlogPosts() {
         const imgTag = post.image ? `<img src="${post.image}" style="width:100%; max-width:400px; border-radius:8px; margin:10px 0;">` : "";
         blogHTML += `
             <div class="blog-entry" style="border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px;">
-                <h4>${post.title}</h4>
+                <h4>${escapeHTML(post.title)}</h4>
                 <small>${escapeHTML(post.date)}</small>
                 ${imgTag}
-                <p>${post.content}</p>
+                <p style="white-space: pre-line;">${escapeHTML(post.content)}</p>
             </div>`;
     });
     display.innerHTML = blogHTML;
